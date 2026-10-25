@@ -13,11 +13,7 @@ npm run dev
 
 Open [http://127.0.0.1:47231](http://127.0.0.1:47231). The dev server listens on `0.0.0.0:47231`.
 
-Choose the time limit (15 / 30 / 45 / 60 seconds), difficulty, and how many problems to face (5, 10, 20, or endless). Endless mode has a stop control and then shows the same results screen.
-
-- Лёгкий — addition and subtraction, small numbers
-- Средний — addition, subtraction, and multiplication
-- Сложный — mixed operations, larger numbers, and division that stays a whole number
+Choose the time limit (10 / 15 / 20 / 30 / 45 / 60 seconds, default 30) and how many problems to face (5, 10, 20, or endless). Every difficulty uses addition, subtraction, multiplication, and exact division; harder levels use larger numbers. The countdown starts when the problem appears. A timeout explodes the meteor and shows the answer. Endless mode has a stop control.
 
 ## Production build
 

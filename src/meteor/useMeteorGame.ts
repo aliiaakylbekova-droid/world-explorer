@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { generateEquation } from "./problems.ts"
+import { createProblemSource } from "./problems.ts"
 import { METEOR_FIELD } from "./rocks.ts"
 import type {
   Difficulty,
@@ -14,7 +14,8 @@ import type {
 } from "./types.ts"
 
 const APPROACH_MS = 1040
-const RESOLVE_MS = 880
+const SUCCESS_MS = 980
+const TIMEOUT_MS = 1750
 const POINTS = 100
 
 const INITIAL: Settings = {
@@ -49,6 +50,8 @@ export function useMeteorGame() {
   const [correct, setCorrect] = useState(0)
   const [missed, setMissed] = useState(0)
   const [wrongTries, setWrongTries] = useState(0)
+  const [streak, setStreak] = useState(0)
+  const [revealedAnswer, setRevealedAnswer] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [round, setRound] = useState(0)
 
@@ -60,14 +63,18 @@ export function useMeteorGame() {
   const usedRef = useRef<string[]>([])
   const deadlineRef = useRef(0)
   const advanceTimer = useRef(0)
-  const wrongTimer = useRef(0)
-  const statsRef = useRef({ correct: 0, missed: 0, wrong: 0, score: 0 })
+  const statsRef = useRef({ correct: 0, missed: 0, wrong: 0, score: 0, streak: 0 })
+  const sourceRef = useRef(createProblemSource())
 
   function clearPending() {
     window.clearTimeout(advanceTimer.current)
-    window.clearTimeout(wrongTimer.current)
     advanceTimer.current = 0
-    wrongTimer.current = 0
+  }
+
+  function armTimer() {
+    const limit = settingsRef.current.time * 1000
+    setLimitMs(limit)
+    setRemainingMs(limit)
   }
 
   function approachNext() {
@@ -76,9 +83,11 @@ export function useMeteorGame() {
     focusRef.current = picked.id
     setFocusId(picked.id)
     setPrompt(null)
+    setRevealedAnswer(null)
     entryRef.current = ""
     setEntry("")
     setFeedback(null)
+    armTimer()
     statusRef.current = "approaching"
     setStatus("approaching")
     setRound((value) => value + 1)
@@ -90,11 +99,12 @@ export function useMeteorGame() {
     focusRef.current = null
     setFocusId(null)
     setPrompt(null)
+    setRevealedAnswer(null)
     setEnding(kind)
     setPhase("results")
   }
 
-  function scheduleNext() {
+  function scheduleNext(delay: number) {
     window.clearTimeout(advanceTimer.current)
     advanceTimer.current = window.setTimeout(() => {
       const finished = statsRef.current.correct + statsRef.current.missed
@@ -104,7 +114,7 @@ export function useMeteorGame() {
         return
       }
       approachNext()
-    }, RESOLVE_MS)
+    }, delay)
   }
 
   function succeed() {
@@ -112,42 +122,45 @@ export function useMeteorGame() {
     statusRef.current = "success"
     statsRef.current.correct += 1
     statsRef.current.score += POINTS
+    statsRef.current.streak += 1
     setCorrect(statsRef.current.correct)
     setScore(statsRef.current.score)
+    setStreak(statsRef.current.streak)
     setFeedback("correct")
     setStatus("success")
-    scheduleNext()
+    scheduleNext(SUCCESS_MS)
   }
 
   function miss() {
     if (statusRef.current !== "solving") return
     statusRef.current = "miss"
     statsRef.current.missed += 1
+    statsRef.current.streak = 0
     setMissed(statsRef.current.missed)
+    setStreak(0)
     setRemainingMs(0)
+    setRevealedAnswer(answerRef.current)
     setFeedback("timeout")
     setStatus("miss")
-    scheduleNext()
+    scheduleNext(TIMEOUT_MS)
   }
 
   function markWrong() {
     if (statusRef.current !== "solving") return
     statsRef.current.wrong += 1
+    statsRef.current.streak = 0
     setWrongTries(statsRef.current.wrong)
+    setStreak(0)
     entryRef.current = ""
     setEntry("")
     setFeedback("wrong")
-    window.clearTimeout(wrongTimer.current)
-    wrongTimer.current = window.setTimeout(() => {
-      setFeedback((current) => (current === "wrong" ? null : current))
-    }, 1100)
   }
 
   const actions = useRef({
     typeDigit(digit: string) {
       if (statusRef.current !== "solving") return
       const current = entryRef.current
-      if (current.length >= 4) return
+      if (current.length >= 6) return
       const next = current === "0" ? digit : current + digit
       entryRef.current = next
       setEntry(next)
@@ -173,7 +186,7 @@ export function useMeteorGame() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     const id = window.setTimeout(() => {
       if (statusRef.current !== "approaching") return
-      const equation = generateEquation(settingsRef.current.difficulty)
+      const equation = sourceRef.current.next(settingsRef.current.difficulty)
       answerRef.current = equation.answer
       setPrompt({ left: equation.left, op: equation.op, right: equation.right })
       const limit = settingsRef.current.time * 1000
@@ -197,7 +210,7 @@ export function useMeteorGame() {
         return
       }
       setRemainingMs(left)
-    }, 100)
+    }, 80)
     return () => window.clearInterval(id)
   }, [status, round])
 
@@ -236,19 +249,21 @@ export function useMeteorGame() {
 
   function start() {
     clearPending()
-    statsRef.current = { correct: 0, missed: 0, wrong: 0, score: 0 }
+    statsRef.current = { correct: 0, missed: 0, wrong: 0, score: 0, streak: 0 }
     usedRef.current = []
+    sourceRef.current.reset()
     settingsRef.current = settings
     setScore(0)
     setCorrect(0)
     setMissed(0)
     setWrongTries(0)
+    setStreak(0)
+    setRevealedAnswer(null)
     setFeedback(null)
     setPrompt(null)
     entryRef.current = ""
     setEntry("")
-    setLimitMs(settings.time * 1000)
-    setRemainingMs(settings.time * 1000)
+    armTimer()
     setPhase("play")
     focusRef.current = null
     const picked = pickMeteor(null, [])
@@ -289,6 +304,8 @@ export function useMeteorGame() {
     correct,
     missed,
     wrongTries,
+    streak,
+    revealedAnswer,
     feedback,
     currentNumber,
     accuracy,
@@ -301,6 +318,7 @@ export function useMeteorGame() {
       focusRef.current = null
       setFocusId(null)
       setPrompt(null)
+      setRevealedAnswer(null)
       setFeedback(null)
       setPhase("menu")
     },

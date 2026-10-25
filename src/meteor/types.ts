@@ -1,4 +1,4 @@
-export const TIME_OPTIONS = [15, 30, 45, 60] as const
+export const TIME_OPTIONS = [10, 15, 20, 30, 45, 60] as const
 export const COUNT_OPTIONS = [5, 10, 20, "infinite"] as const
 
 export type TimeLimit = (typeof TIME_OPTIONS)[number]

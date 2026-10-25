@@ -7,57 +7,47 @@ export type Equation = {
   answer: number
 }
 
+const OPS = ["+", "−", "×", "÷"] as const
+type Op = (typeof OPS)[number]
+
+const RECENT_LIMIT = 12
+
 function rand(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1))
 }
 
-function easy(): Equation {
-  if (Math.random() < 0.55) {
-    const a = rand(1, 12)
-    const b = rand(1, 12)
-    return { left: String(a), op: "+", right: String(b), answer: a + b }
+function shuffle<T>(items: readonly T[]): T[] {
+  const copy = [...items]
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(Math.random() * (index + 1))
+    const current = copy[index]!
+    copy[index] = copy[swap]!
+    copy[swap] = current
   }
-  const a = rand(6, 18)
-  const b = rand(1, a - 1)
+  return copy
+}
+
+function addition(minA: number, maxA: number, minB: number, maxB: number): Equation {
+  const a = rand(minA, maxA)
+  const b = rand(minB, maxB)
+  return { left: String(a), op: "+", right: String(b), answer: a + b }
+}
+
+function subtraction(minA: number, maxA: number, minB: number): Equation {
+  const a = rand(minA, maxA)
+  const b = rand(Math.min(minB, a), a)
   return { left: String(a), op: "−", right: String(b), answer: a - b }
 }
 
-function medium(): Equation {
-  const roll = rand(0, 2)
-  if (roll === 0) {
-    const a = rand(8, 40)
-    const b = rand(6, 35)
-    return { left: String(a), op: "+", right: String(b), answer: a + b }
-  }
-  if (roll === 1) {
-    const a = rand(18, 70)
-    const b = rand(4, a - 1)
-    return { left: String(a), op: "−", right: String(b), answer: a - b }
-  }
-  const a = rand(2, 10)
-  const b = rand(2, 10)
+function multiplication(minA: number, maxA: number, minB: number, maxB: number): Equation {
+  const a = rand(minA, maxA)
+  const b = rand(minB, maxB)
   return { left: String(a), op: "×", right: String(b), answer: a * b }
 }
 
-function hard(): Equation {
-  const roll = rand(0, 3)
-  if (roll === 0) {
-    const a = rand(28, 96)
-    const b = rand(17, 84)
-    return { left: String(a), op: "+", right: String(b), answer: a + b }
-  }
-  if (roll === 1) {
-    const a = rand(42, 140)
-    const b = rand(13, a - 1)
-    return { left: String(a), op: "−", right: String(b), answer: a - b }
-  }
-  if (roll === 2) {
-    const a = rand(6, 16)
-    const b = rand(4, 12)
-    return { left: String(a), op: "×", right: String(b), answer: a * b }
-  }
-  const divisor = rand(2, 12)
-  const quotient = rand(3, 15)
+function division(divMin: number, divMax: number, quotMin: number, quotMax: number): Equation {
+  const divisor = rand(divMin, divMax)
+  const quotient = rand(quotMin, quotMax)
   return {
     left: String(divisor * quotient),
     op: "÷",
@@ -66,8 +56,58 @@ function hard(): Equation {
   }
 }
 
-export function generateEquation(difficulty: Difficulty): Equation {
-  if (difficulty === "easy") return easy()
-  if (difficulty === "medium") return medium()
-  return hard()
+function build(difficulty: Difficulty, op: Op): Equation {
+  if (difficulty === "easy") {
+    if (op === "+") return addition(2, 20, 2, 18)
+    if (op === "−") return subtraction(6, 24, 1)
+    if (op === "×") return multiplication(2, 9, 2, 9)
+    return division(2, 9, 2, 9)
+  }
+  if (difficulty === "medium") {
+    if (op === "+") return addition(24, 240, 12, 160)
+    if (op === "−") return subtraction(48, 320, 12)
+    if (op === "×") return multiplication(6, 18, 3, 12)
+    return division(4, 16, 6, 24)
+  }
+  if (op === "+") return addition(120, 860, 80, 640)
+  if (op === "−") return subtraction(220, 980, 40)
+  if (op === "×") return multiplication(12, 36, 8, 24)
+  return division(8, 28, 12, 36)
+}
+
+export function createProblemSource() {
+  let bag: Op[] = []
+  const recent: string[] = []
+
+  function take(difficulty: Difficulty): Equation {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      if (bag.length === 0) bag = shuffle(OPS)
+      const op = bag[bag.length - 1]!
+      const equation = build(difficulty, op)
+      const key = `${equation.left}${equation.op}${equation.right}`
+      if (!recent.includes(key)) {
+        bag.pop()
+        recent.push(key)
+        if (recent.length > RECENT_LIMIT) recent.shift()
+        return equation
+      }
+      bag = shuffle(OPS)
+    }
+    recent.length = 0
+    bag = shuffle(OPS)
+    const op = bag.pop() ?? "+"
+    const equation = build(difficulty, op)
+    recent.push(`${equation.left}${equation.op}${equation.right}`)
+    return equation
+  }
+
+  return {
+    next(difficulty: Difficulty) {
+      return take(difficulty)
+    },
+    reset() {
+      bag = []
+      recent.length = 0
+    },
+  }
 }

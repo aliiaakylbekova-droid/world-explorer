@@ -1,9 +1,9 @@
 import { COUNT_OPTIONS, TIME_OPTIONS, type Difficulty, type ProblemCount, type Settings, type TimeLimit } from "./types.ts"
 
 const DIFFICULTIES: { id: Difficulty; title: string; text: string }[] = [
-  { id: "easy", title: "Лёгкий", text: "Сложение и вычитание, небольшие числа" },
-  { id: "medium", title: "Средний", text: "Плюс, минус и умножение" },
-  { id: "hard", title: "Сложный", text: "Все действия, крупные числа, деление нацело" },
+  { id: "easy", title: "Лёгкий", text: "Небольшие числа, все четыре действия" },
+  { id: "medium", title: "Средний", text: "Двузначные и трёхзначные числа" },
+  { id: "hard", title: "Сложный", text: "Крупные числа, считать сложнее" },
 ]
 
 export function MenuScreen({

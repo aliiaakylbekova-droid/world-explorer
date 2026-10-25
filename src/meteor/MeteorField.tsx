@@ -23,7 +23,7 @@ export function MeteorField({
       {meteors.map((meteor) => {
         const isFocus = meteor.id === focusId
         const colors = PALETTES[meteor.palette] ?? PALETTES[0]
-        const showProblem = isFocus && prompt !== null && (status === "solving" || status === "success" || status === "miss")
+        const showProblem = isFocus && prompt !== null && status === "solving"
         const className = [
           "mm-meteor",
           isFocus ? "is-focus" : "",
@@ -58,8 +58,8 @@ export function MeteorField({
                 className="mm-spin-wrap"
                 style={
                   {
-                    animationDuration: `${meteor.spin}s`,
-                    animationDirection: meteor.reverse ? "reverse" : "normal",
+                    "--spin": `${meteor.spin}s`,
+                    "--spin-dir": meteor.reverse ? "reverse" : "normal",
                   } as CSSProperties
                 }
               >
@@ -85,9 +85,13 @@ export function MeteorField({
           </div>
         )
       })}
-      {status === "success" ? (
-        <div className="mm-burst" aria-hidden="true">
-          {Array.from({ length: 16 }, (_, index) => (
+      {status === "success" || status === "miss" ? (
+        <div
+          className={status === "miss" ? "mm-burst is-boom" : "mm-burst"}
+          style={{ "--step": status === "miss" ? "13.8deg" : "20deg" } as CSSProperties}
+          aria-hidden="true"
+        >
+          {Array.from({ length: status === "miss" ? 26 : 18 }, (_, index) => (
             <span key={index} style={{ "--i": String(index) } as CSSProperties} />
           ))}
         </div>
