@@ -15,6 +15,24 @@ Open [http://127.0.0.1:47231](http://127.0.0.1:47231). The dev server listens on
 
 Choose the time limit (10 / 15 / 20 / 30 / 45 / 60 seconds, default 30) and how many problems to face (5, 10, 20, or endless). Every difficulty uses addition, subtraction, multiplication, and exact division; harder levels use larger numbers. The countdown starts when the problem appears. A timeout explodes the meteor and shows the answer. Endless mode has a stop control.
 
+## Desktop app
+
+The game also runs in its own window, with no browser tabs or address bar. Start the dev server, then:
+
+```bash
+npm run dev:electron
+```
+
+`npm run dev:electron` loads http://127.0.0.1:47231. F11 toggles fullscreen. The window opens on METEOR MATH. `#/explorer` is still the geography quiz.
+
+On Windows, build an NSIS installer (win32/x64):
+
+```bash
+npm run dist
+```
+
+The installer is written under `release/`. The packaged app does not need Cursor.
+
 ## Production build
 
 ```bash
