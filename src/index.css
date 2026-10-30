@@ -607,6 +607,21 @@ button:focus-visible {
   }
 }
 
+.mode-return {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2000;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(246, 241, 228, 0.94);
+  color: #4a463e;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .q-body {
     animation: none;

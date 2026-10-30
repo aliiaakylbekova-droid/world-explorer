@@ -1,63 +1,44 @@
-import { QUESTIONS, type Camera } from "./data/questions.ts"
-import { QuestionSheet } from "./components/QuestionSheet.tsx"
-import { ResultsCard, ReviewCard, StartCard } from "./components/Overlays.tsx"
-import { TopBar } from "./components/TopBar.tsx"
-import { WorldMap } from "./components/WorldMap.tsx"
-import type { Outcome } from "./game/logic.ts"
-import { useQuiz } from "./game/useQuiz.ts"
+import { lazy, Suspense, useEffect, useState } from "react"
+import { MeteorMath } from "./meteor/MeteorMath.tsx"
 
-const WORLD: Camera = { center: [18, 12], zoom: 2 }
+const ExplorerApp = lazy(() => import("./ExplorerApp.tsx"))
+
+type Mode = "meteor" | "explorer"
+
+function readMode(): Mode {
+  return window.location.hash === "#/explorer" ? "explorer" : "meteor"
+}
 
 export default function App() {
-  const quiz = useQuiz()
-  const question = QUESTIONS[quiz.index] ?? QUESTIONS[0]
+  const [mode, setMode] = useState<Mode>(readMode)
 
-  const playing = quiz.phase === "play"
-  const showReveal = playing && quiz.picked !== null
-  const camera = !playing ? WORLD : showReveal ? question.reveal.camera : question.camera
-  const country = playing ? (question.focusCountry ?? null) : null
-  const reveal = showReveal ? question.reveal : null
+  useEffect(() => {
+    const onHash = () => setMode(readMode())
+    window.addEventListener("hashchange", onHash)
+    return () => window.removeEventListener("hashchange", onHash)
+  }, [])
 
-  const outcomes = QUESTIONS.map((item, index) => {
-    const record = quiz.records.find((entry) => entry.questionId === item.id)
-    if (record) return record.outcome
-    if (playing && index === quiz.index) return "current" as const
-    return "upcoming" as const
-  })
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (mode === "explorer") {
+      document.title = "WORLD EXPLORER"
+      meta?.setAttribute("content", "#efe4cc")
+      return
+    }
+    document.title = "METEOR MATH"
+    meta?.setAttribute("content", "#050714")
+  }, [mode])
 
-  return (
-    <div className="game">
-      <WorldMap camera={camera} country={country} reveal={reveal} />
-      <TopBar
-        phase={quiz.phase}
-        questionNumber={quiz.index + 1}
-        remainingMs={quiz.remainingMs}
-        elapsedMs={quiz.elapsedMs}
-        score={quiz.stats.score}
-        outcomes={outcomes as (Outcome | "current" | "upcoming")[]}
-      />
-      {quiz.phase === "ready" ? <StartCard onStart={quiz.start} /> : null}
-      {playing ? (
-        <QuestionSheet
-          question={question}
-          number={quiz.index + 1}
-          picked={quiz.picked}
-          onChoose={quiz.choose}
-          onSkip={quiz.skip}
-          onNext={quiz.next}
-        />
-      ) : null}
-      {quiz.phase === "results" ? (
-        <ResultsCard
-          stats={quiz.stats}
-          elapsedMs={quiz.elapsedMs}
-          onReplay={quiz.start}
-          onReview={quiz.review}
-        />
-      ) : null}
-      {quiz.phase === "review" ? (
-        <ReviewCard records={quiz.records} onClose={quiz.closeReview} />
-      ) : null}
-    </div>
-  )
+  if (mode === "explorer") {
+    return (
+      <Suspense fallback={null}>
+        <ExplorerApp />
+        <a className="mode-return" href="#/">
+          METEOR MATH
+        </a>
+      </Suspense>
+    )
+  }
+
+  return <MeteorMath />
 }

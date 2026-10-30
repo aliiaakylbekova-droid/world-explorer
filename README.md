@@ -1,6 +1,6 @@
-# WORLD EXPLORER
+# METEOR MATH
 
-Fullscreen geography quiz for grade 7. The world map fills the screen for the whole game. Fifteen questions, twenty minutes, score out of 1500. The interface is in Russian.
+A fullscreen cosmic arithmetic game. Meteors, planets, and stars are drawn in 3D with React Three Fiber. The geography quiz is still available at `#/explorer`.
 
 ## Run locally
 
@@ -11,14 +11,15 @@ npm run dev
 
 Open [http://127.0.0.1:47231](http://127.0.0.1:47231). The dev server listens on `0.0.0.0:47231`.
 
-## What is on screen
+## How to play
 
-- Esri World Street Map (no API key), shifted with a light parchment filter so oceans read as parchment, land as beige, and borders as brown. CARTO’s free tiles watermark without a key, and the public OpenStreetMap tile server blocks this app. If the street tiles fail, the map falls back to Esri’s World Physical Map with the same treatment.
-- A compact top bar: title, question number, countdown, score, and progress.
-- A bottom panel with the question and four answers.
-- After the quiz, the result and a review of every answer stay over the map.
+1. Choose seconds per problem: 15, 30, 45, 60, or a custom value from 1 to 600. The default is 30.
+2. Press **START GAME**, then **LAUNCH**.
+3. A meteor flies to the center. Solve the addition, subtraction, multiplication, or division problem before the timer hits `00:00`.
+4. Press Enter or **SUBMIT**. A wrong answer can be retried until time runs out. A correct answer breaks the meteor into particles and raises the score by 100.
+5. At zero, the meteor explodes, **TIME'S UP!** appears, and you lose a life. Three lives, then **GAME OVER**. **PLAY AGAIN** resets the run.
 
-Progress is stored only in the browser. Refreshing the page starts over.
+The timer glows calmly, blinks at 10 seconds, and turns red with an alarm for the last 5 seconds. Division stays whole, subtraction stays non-negative, and the same problem is never asked twice in a row. Difficulty rises as you solve more.
 
 ## Production build
 
@@ -26,4 +27,4 @@ Progress is stored only in the browser. Refreshing the page starts over.
 npm run build
 ```
 
-Vite writes the site to `dist`. On Vercel, set the framework to Vite, leave the root directory as the repository root, build command `npm run build`, and output directory `dist`.
+Vite writes the site to `dist`.
