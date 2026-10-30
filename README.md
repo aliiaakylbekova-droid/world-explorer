@@ -2,7 +2,7 @@
 
 Full-screen cosmic arithmetic game. Rocky meteors drift through a star field; after you start, one flies to the center and only then shows a generated equation. Answer on the on-screen keypad or the keyboard before the timer runs out. A wrong answer can be retried until time expires. The interface is in Russian.
 
-WORLD EXPLORER, the grade-7 geography quiz, is still in the app. Open it from the Meteor Math menu («Открыть географическую викторину») and return with «К метеорам».
+WORLD EXPLORER, the grade-7 geography quiz, stays on its own screen at `#/explorer`. Return with «К метеорам». The game itself has no site header, sidebar, or quiz link.
 
 ## Run locally
 

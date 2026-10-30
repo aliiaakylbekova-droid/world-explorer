@@ -22,13 +22,17 @@
 html,
 body,
 #root {
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 body {
   overflow: hidden;
-  background: #efe4cc;
+  background: #07051a;
   color: var(--ink);
 }
 

@@ -6,7 +6,7 @@ import { ResultsScreen } from "./ResultsScreen.tsx"
 import { useMeteorGame } from "./useMeteorGame.ts"
 import "./meteor.css"
 
-export function MeteorMath({ onOpenExplorer }: { onOpenExplorer: () => void }) {
+export function MeteorMath() {
   const game = useMeteorGame()
   const flash =
     game.status === "success" ? "is-success" : game.feedback === "wrong" ? "is-wrong" : game.status === "miss" ? "is-miss" : ""
@@ -30,7 +30,6 @@ export function MeteorMath({ onOpenExplorer }: { onOpenExplorer: () => void }) {
           onDifficulty={game.setDifficulty}
           onCount={game.setCount}
           onStart={game.start}
-          onOpenExplorer={onOpenExplorer}
         />
       ) : null}
       {game.phase === "play" ? (

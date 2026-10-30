@@ -1,3 +1,4 @@
+import "leaflet/dist/leaflet.css"
 import { QUESTIONS, type Camera } from "./data/questions.ts"
 import { QuestionSheet } from "./components/QuestionSheet.tsx"
 import { ResultsCard, ReviewCard, StartCard } from "./components/Overlays.tsx"

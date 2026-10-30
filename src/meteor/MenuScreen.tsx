@@ -12,14 +12,12 @@ export function MenuScreen({
   onDifficulty,
   onCount,
   onStart,
-  onOpenExplorer,
 }: {
   settings: Settings
   onTime: (time: TimeLimit) => void
   onDifficulty: (difficulty: Difficulty) => void
   onCount: (count: ProblemCount) => void
   onStart: () => void
-  onOpenExplorer: () => void
 }) {
   return (
     <div className="mm-overlay">
@@ -85,10 +83,6 @@ export function MenuScreen({
             ))}
           </div>
         </div>
-
-        <button type="button" className="mm-link" onClick={onOpenExplorer}>
-          Открыть географическую викторину
-        </button>
       </section>
     </div>
   )

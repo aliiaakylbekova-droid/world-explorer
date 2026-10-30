@@ -48,5 +48,5 @@ export default function App() {
     )
   }
 
-  return <MeteorMath onOpenExplorer={() => open("explorer")} />
+  return <MeteorMath />
 }
