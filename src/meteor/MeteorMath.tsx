@@ -17,6 +17,7 @@ export function MeteorMath() {
       <MeteorField
         meteors={game.meteors}
         focusId={game.phase === "play" ? game.focusId : null}
+        incomingFrom={game.incomingFrom}
         prompt={game.prompt}
         status={game.status}
         feedback={game.feedback}

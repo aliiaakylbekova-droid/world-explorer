@@ -6,6 +6,7 @@ import { PALETTES } from "./rocks.ts"
 export function MeteorField({
   meteors,
   focusId,
+  incomingFrom,
   prompt,
   status,
   feedback,
@@ -13,6 +14,7 @@ export function MeteorField({
 }: {
   meteors: readonly MeteorSpec[]
   focusId: string | null
+  incomingFrom: { x: number; y: number }
   prompt: EquationView | null
   status: Status
   feedback: Feedback
@@ -22,11 +24,14 @@ export function MeteorField({
     <div className="mm-field">
       {meteors.map((meteor) => {
         const isFocus = meteor.id === focusId
+        const incoming = isFocus && status === "approaching"
         const colors = PALETTES[meteor.palette] ?? PALETTES[0]
         const showProblem = isFocus && prompt !== null && status === "solving"
         const className = [
           "mm-meteor",
           isFocus ? "is-focus" : "",
+          incoming ? "is-incoming" : "",
+          isFocus && !incoming ? "is-locked" : "",
           isFocus && status === "success" ? "is-success" : "",
           isFocus && status === "miss" ? "is-miss" : "",
           isFocus && feedback === "wrong" ? "is-wrong" : "",
@@ -40,8 +45,12 @@ export function MeteorField({
           "--scale": String(meteor.scale),
           "--drift": `${meteor.drift}s`,
           "--delay": `${meteor.delay}s`,
-          "--dx": `${meteor.dx}px`,
-          "--dy": `${meteor.dy}px`,
+          "--dx": meteor.dx,
+          "--dy": meteor.dy,
+          "--dx2": meteor.dx2,
+          "--dy2": meteor.dy2,
+          "--from-x": `${incomingFrom.x}%`,
+          "--from-y": `${incomingFrom.y}%`,
           "--z": String(meteor.z),
           "--glow": colors?.glow ?? "rgba(255,255,255,0.6)",
         } as CSSProperties

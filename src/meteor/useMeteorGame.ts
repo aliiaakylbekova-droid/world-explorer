@@ -18,6 +18,17 @@ const SUCCESS_MS = 980
 const TIMEOUT_MS = 1750
 const POINTS = 100
 
+export type ApproachFrom = { x: number; y: number }
+
+function randomEdge(): ApproachFrom {
+  const along = 8 + Math.random() * 84
+  const side = Math.floor(Math.random() * 4)
+  if (side === 0) return { x: -24, y: along }
+  if (side === 1) return { x: 124, y: along }
+  if (side === 2) return { x: along, y: -28 }
+  return { x: along, y: 122 }
+}
+
 const INITIAL: Settings = {
   time: 30,
   difficulty: "medium",
@@ -42,6 +53,7 @@ export function useMeteorGame() {
   const [status, setStatus] = useState<Status>("idle")
   const [ending, setEnding] = useState<Ending>("clear")
   const [focusId, setFocusId] = useState<string | null>(null)
+  const [incomingFrom, setIncomingFrom] = useState<ApproachFrom>({ x: -24, y: 36 })
   const [prompt, setPrompt] = useState<EquationView | null>(null)
   const [entry, setEntry] = useState("")
   const [remainingMs, setRemainingMs] = useState(INITIAL.time * 1000)
@@ -81,6 +93,7 @@ export function useMeteorGame() {
     const picked = pickMeteor(focusRef.current, usedRef.current)
     usedRef.current = picked.used
     focusRef.current = picked.id
+    setIncomingFrom(randomEdge())
     setFocusId(picked.id)
     setPrompt(null)
     setRevealedAnswer(null)
@@ -269,6 +282,7 @@ export function useMeteorGame() {
     const picked = pickMeteor(null, [])
     usedRef.current = picked.used
     focusRef.current = picked.id
+    setIncomingFrom(randomEdge())
     setFocusId(picked.id)
     statusRef.current = "approaching"
     setStatus("approaching")
@@ -296,6 +310,7 @@ export function useMeteorGame() {
     ending,
     meteors: METEOR_FIELD,
     focusId,
+    incomingFrom,
     prompt,
     entry,
     remainingMs,

@@ -31,8 +31,10 @@ export type MeteorSpec = {
   delay: number
   spin: number
   reverse: boolean
-  dx: number
-  dy: number
+  dx: string
+  dy: string
+  dx2: string
+  dy2: string
   seed: number
   palette: number
   z: number

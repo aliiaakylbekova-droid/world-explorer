@@ -1,6 +1,6 @@
 # METEOR MATH — Космическая математика
 
-Full-screen cosmic arithmetic game. Rocky meteors drift through a star field; after you start, one flies to the center and only then shows a generated equation. Answer on the on-screen keypad or the keyboard before the timer runs out. A wrong answer can be retried until time expires. The interface is in Russian.
+Full-screen cosmic arithmetic game. The window opens on the star field: planets and rocky meteors travel through space, and the timer, difficulty, and start controls sit on that field. After you start, one meteor flies in from off screen and only then shows a generated equation. Answer on the on-screen keypad or the keyboard before the timer runs out. A wrong answer can be retried until time expires. A timeout explodes that meteor. The interface is in Russian.
 
 WORLD EXPLORER, the grade-7 geography quiz, stays on its own screen at `#/explorer`. Return with «К метеорам». The game itself has no site header, sidebar, or quiz link.
 

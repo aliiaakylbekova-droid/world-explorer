@@ -10,6 +10,8 @@
   background:
     radial-gradient(ellipse 90% 60% at 50% 100%, rgba(48, 24, 90, 0.55), transparent 60%),
     linear-gradient(185deg, #07051a 0%, #141038 42%, #1a1048 68%, #091428 100%);
+  --aim-x: 50%;
+  --aim-y: 35%;
   font-family: Inter, "Segoe UI", sans-serif;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -229,6 +231,7 @@
 }
 
 .mm-meteor {
+  --aim-scale: var(--scale);
   position: absolute;
   left: var(--x);
   top: var(--y);
@@ -236,11 +239,7 @@
   height: var(--size);
   z-index: var(--z);
   transform: translate(-50%, -50%) scale(1);
-  transition:
-    left 1s cubic-bezier(0.22, 0.82, 0.24, 1),
-    top 1s cubic-bezier(0.22, 0.82, 0.24, 1),
-    transform 1s cubic-bezier(0.22, 0.82, 0.24, 1),
-    opacity 0.4s ease;
+  transition: opacity 0.4s ease;
 }
 
 .mm.is-playing .mm-meteor:not(.is-focus) {
@@ -248,11 +247,20 @@
 }
 
 .mm-meteor.is-focus {
-  left: 50%;
-  top: 35%;
   z-index: 6;
   opacity: 1;
-  transform: translate(-50%, -50%) scale(var(--scale));
+}
+
+.mm-meteor.is-focus.is-incoming {
+  animation: mm-fly-in 1.04s cubic-bezier(0.16, 0.84, 0.32, 1) both;
+  transition: none;
+}
+
+.mm-meteor.is-focus.is-locked {
+  left: var(--aim-x);
+  top: var(--aim-y);
+  transform: translate(-50%, -50%) scale(var(--aim-scale));
+  transition: none;
 }
 
 .mm-meteor.is-focus::before {
@@ -412,7 +420,7 @@
 .mm-burst {
   position: absolute;
   left: 50%;
-  top: 35%;
+  top: var(--aim-y);
   z-index: 7;
   width: 0;
   height: 0;
@@ -687,7 +695,7 @@
 .mm-solve {
   position: absolute;
   left: 50%;
-  top: calc(35% + 62px);
+  top: calc(var(--aim-y) + 62px);
   z-index: 6;
   width: min(320px, calc(100% - 36px));
   padding: 10px;
@@ -716,7 +724,7 @@
 .mm-timeout {
   position: absolute;
   left: 50%;
-  top: 35%;
+  top: var(--aim-y);
   z-index: 8;
   width: min(360px, calc(100% - 36px));
   padding: 22px 18px;
@@ -851,11 +859,63 @@
   padding: 0;
   overflow: hidden;
   background: transparent;
+  pointer-events: none;
+}
+
+.mm-launch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 16px 18px 18px;
+}
+
+.mm-brand {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  margin: 0;
+  color: #f4f8ff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-shadow: 0 0 18px rgba(140, 190, 255, 0.7);
+  pointer-events: none;
+}
+
+.mm-console {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 18px;
+  width: min(1180px, 100%);
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(180, 210, 255, 0.28);
+  border-radius: 18px;
+  background: rgba(8, 12, 28, 0.82);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+.mm-console .mm-setting {
+  margin: 0;
+}
+
+.mm-console .mm-start {
+  width: auto;
+  min-width: 190px;
+  margin-left: auto;
+  align-self: center;
 }
 
 .mm-overlay:has(.mm-results) {
+  display: grid;
+  place-items: center;
   padding: 18px 14px;
   overflow: auto;
+  pointer-events: auto;
   background: radial-gradient(ellipse at center, rgba(5, 8, 22, 0.28), rgba(5, 8, 22, 0.62));
 }
 
@@ -1088,18 +1148,16 @@
 }
 
 @media (max-height: 800px) {
-  .mm-meteor.is-focus {
-    top: 30%;
-    transform: translate(-50%, -50%) scale(calc(var(--scale) * 0.66));
+  .mm {
+    --aim-y: 28%;
   }
 
-  .mm-burst,
-  .mm-timeout {
-    top: 30%;
+  .mm-meteor.is-focus {
+    --aim-scale: calc(var(--scale) * 0.66);
   }
 
   .mm-solve {
-    top: calc(30% + 46px);
+    top: calc(var(--aim-y) + 46px);
   }
 
   .mm-key {
@@ -1122,25 +1180,18 @@
 }
 
 @media (max-width: 900px) {
-  .mm-overlay:not(:has(.mm-results)) {
-    padding: 108px 16px 100px;
+  .mm-launch {
+    padding: 12px;
   }
 
-  .mm-menu {
+  .mm-console {
     width: 100%;
   }
 
-  .mm:not(.is-playing) .mm-meteor {
-    transform: translate(-50%, -50%) scale(0.52);
+  .mm-console .mm-start {
+    width: 100%;
+    margin-left: 0;
   }
-
-  .mm:not(.is-playing) .mm-meteor:nth-child(1) { left: 8%; top: 5%; }
-  .mm:not(.is-playing) .mm-meteor:nth-child(2) { left: 30%; top: 4%; }
-  .mm:not(.is-playing) .mm-meteor:nth-child(3) { left: 70%; top: 5%; }
-  .mm:not(.is-playing) .mm-meteor:nth-child(4) { left: 92%; top: 6%; }
-  .mm:not(.is-playing) .mm-meteor:nth-child(5) { left: 10%; top: 96%; }
-  .mm:not(.is-playing) .mm-meteor:nth-child(6) { left: 48%; top: 97%; }
-  .mm:not(.is-playing) .mm-meteor:nth-child(7) { left: 88%; top: 95%; }
 
   .mm-corner,
   .mm-dock,
@@ -1156,35 +1207,6 @@
   .mm-corner {
     min-width: 76px;
     padding: 6px 10px;
-  }
-}
-
-@media (min-width: 901px) {
-  .mm:not(.is-playing) .mm-meteor:nth-child(5) {
-    left: 93%;
-    top: 80%;
-  }
-
-  .mm:not(.is-playing) .mm-meteor:nth-child(6) {
-    left: 10%;
-    top: 11%;
-  }
-
-  .mm:not(.is-playing) .mm-meteor:nth-child(7) {
-    left: 90%;
-    top: 74%;
-  }
-}
-
-@media (max-width: 900px) {
-  .mm.is-playing .mm-meteor:not(.is-focus):nth-child(5) {
-    left: 94%;
-    top: 58%;
-  }
-
-  .mm.is-playing .mm-meteor:not(.is-focus):nth-child(7) {
-    left: 7%;
-    top: 40%;
   }
 }
 
@@ -1227,13 +1249,29 @@
 
 @keyframes mm-drift {
   0% {
-    transform: translate(0, 0);
+    transform: translate3d(0, 0, 0);
   }
-  50% {
-    transform: translate(var(--dx), var(--dy));
+  35% {
+    transform: translate3d(var(--dx), var(--dy), 0);
+  }
+  70% {
+    transform: translate3d(var(--dx2), var(--dy2), 0);
   }
   100% {
-    transform: translate(calc(var(--dx) * -0.45), calc(var(--dy) * 0.55));
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes mm-fly-in {
+  from {
+    left: var(--from-x);
+    top: var(--from-y);
+    transform: translate(-50%, -50%) scale(0.46);
+  }
+  to {
+    left: var(--aim-x);
+    top: var(--aim-y);
+    transform: translate(-50%, -50%) scale(var(--aim-scale));
   }
 }
 
@@ -1248,10 +1286,10 @@
 
 @keyframes mm-float {
   from {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
   to {
-    transform: translateY(14px);
+    transform: translate3d(22px, 34px, 0);
   }
 }
 

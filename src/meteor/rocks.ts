@@ -171,13 +171,13 @@ export function buildRock(seed: number): RockGeometry {
 const FOCUS = 300
 
 const LAYOUT: Omit<MeteorSpec, "scale" | "z">[] = [
-  { id: "m1", x: 16, y: 22, size: 132, drift: 11, delay: -2, spin: 22, reverse: false, dx: 18, dy: -12, seed: 4, palette: 0 },
-  { id: "m2", x: 80, y: 16, size: 98, drift: 13, delay: -6, spin: 18, reverse: true, dx: -14, dy: 16, seed: 12, palette: 1 },
-  { id: "m3", x: 90, y: 56, size: 154, drift: 15, delay: -3, spin: 28, reverse: false, dx: -12, dy: 14, seed: 21, palette: 2 },
-  { id: "m4", x: 18, y: 70, size: 116, drift: 12, delay: -8, spin: 20, reverse: true, dx: 16, dy: -10, seed: 33, palette: 3 },
-  { id: "m5", x: 68, y: 76, size: 86, drift: 9, delay: -4, spin: 16, reverse: false, dx: -18, dy: -12, seed: 41, palette: 4 },
-  { id: "m6", x: 48, y: 12, size: 108, drift: 14, delay: -7, spin: 24, reverse: true, dx: 10, dy: 18, seed: 52, palette: 5 },
-  { id: "m7", x: 32, y: 44, size: 78, drift: 10, delay: -1, spin: 15, reverse: false, dx: 14, dy: 12, seed: 63, palette: 6 },
+  { id: "m1", x: 16, y: 22, size: 132, drift: 16, delay: -2, spin: 22, reverse: false, dx: "52vw", dy: "10vh", dx2: "16vw", dy2: "42vh", seed: 4, palette: 0 },
+  { id: "m2", x: 80, y: 16, size: 98, drift: 18, delay: -6, spin: 18, reverse: true, dx: "-46vw", dy: "26vh", dx2: "-12vw", dy2: "48vh", seed: 12, palette: 1 },
+  { id: "m3", x: 90, y: 56, size: 154, drift: 20, delay: -3, spin: 28, reverse: false, dx: "-38vw", dy: "-30vh", dx2: "-62vw", dy2: "8vh", seed: 21, palette: 2 },
+  { id: "m4", x: 18, y: 70, size: 116, drift: 15, delay: -8, spin: 20, reverse: true, dx: "44vw", dy: "-34vh", dx2: "18vw", dy2: "-52vh", seed: 33, palette: 3 },
+  { id: "m5", x: 68, y: 76, size: 86, drift: 13, delay: -4, spin: 16, reverse: false, dx: "-32vw", dy: "-40vh", dx2: "14vw", dy2: "-16vh", seed: 41, palette: 4 },
+  { id: "m6", x: 48, y: 12, size: 108, drift: 17, delay: -7, spin: 24, reverse: true, dx: "8vw", dy: "50vh", dx2: "-36vw", dy2: "24vh", seed: 52, palette: 5 },
+  { id: "m7", x: 32, y: 44, size: 78, drift: 14, delay: -1, spin: 15, reverse: false, dx: "40vw", dy: "18vh", dx2: "6vw", dy2: "-32vh", seed: 63, palette: 6 },
 ]
 
 export const METEOR_FIELD: MeteorSpec[] = LAYOUT.map((meteor) => ({
