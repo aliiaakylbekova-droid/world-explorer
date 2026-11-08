@@ -88,10 +88,10 @@ function createWindow() {
   win.webContents.openDevTools()
 
   const distIndex = path.join(__dirname, "../dist/index.html")
-  if (app.isPackaged || (fs.existsSync(distIndex) && !process.env.ELECTRON_START_URL)) {
+  if (app.isPackaged) {
     win.loadFile(distIndex)
   } else {
-    win.loadURL(DEV_URL)
+    win.loadURL(process.env.ELECTRON_START_URL || DEV_URL)
   }
 }
 

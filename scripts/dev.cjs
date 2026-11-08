@@ -23,7 +23,7 @@ function waitForVite() {
   })
 }
 
-const vite = spawn("npx", ["vite"], {
+const vite = spawn("npx", ["vite", "--host", "127.0.0.1", "--port", String(port)], {
   cwd: root,
   stdio: "inherit",
   shell: process.platform === "win32",

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import "../index.css"
 import { LANDMARKS, NEIGHBORS, getCatalog, loadCatalog } from "../geo/catalog"
 import { formatClock } from "./logic"
 import { FLAG_MODES, STORY_MISSIONS, type StoryMission } from "./storyMissions"
@@ -55,6 +56,7 @@ export function GameShell() {
   const [hintOn, setHintOn] = useState(false)
   const [point, setPoint] = useState<{ title: string; text: string } | null>(null)
   const [flagRound, setFlagRound] = useState<StoryMission | null>(null)
+  const [hoverTip, setHoverTip] = useState<{ name: string; x: number; y: number } | null>(null)
   const left = useTick(missionEndsAt)
 
   useEffect(() => {
@@ -205,7 +207,7 @@ export function GameShell() {
             : mission?.story
 
   return (
-    <div className="hud">
+    <div className="gq-live hud" data-hud="explorer-v2">
       <header className="hud-top">
         <div className="brand">
           <strong>GEO QUEST</strong>
@@ -297,7 +299,17 @@ export function GameShell() {
           scene={landmark.scene}
           onPick={judge}
           onPoint={(title, text) => setPoint({ title, text })}
+          onHover={(hit) => {
+            if (!hit?.name) setHoverTip(null)
+            else setHoverTip({ name: hit.name, x: hit.x, y: hit.y })
+          }}
         />
+        {hoverTip ? (
+          <div className="gq-tip" style={{ left: hoverTip.x, top: hoverTip.y }}>
+            {hoverTip.name}
+          </div>
+        ) : null}
+        {country ? <div className="gq-select-chip">{country.name}</div> : null}
       </main>
 
       <aside className="hud-right">

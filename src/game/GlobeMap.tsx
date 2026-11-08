@@ -21,7 +21,13 @@ function LodTracker({ onLod }: { onLod: (lod: number) => void }) {
   return null
 }
 
-export function EarthBundle({ onPick }: { onPick: (hit: { iso: string | null; lat: number; lng: number }) => void }) {
+export function EarthBundle({
+  onPick,
+  onHover,
+}: {
+  onPick: (hit: { iso: string | null; lat: number; lng: number }) => void
+  onHover?: (hit: { iso: string | null; name: string | null; x: number; y: number } | null) => void
+}) {
   const layers = useGame((s) => s.layers)
   const selectedIso = useGame((s) => s.selectedIso)
   const highlightIso = useGame((s) => s.highlightIso)
@@ -65,6 +71,7 @@ export function EarthBundle({ onPick }: { onPick: (hit: { iso: string | null; la
         flyTo={flyTo}
         lod={lod}
         onPick={onPick}
+        onHover={onHover}
       />
     </>
   )

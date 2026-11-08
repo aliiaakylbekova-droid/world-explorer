@@ -1,6 +1,6 @@
-import { Html, OrbitControls, Stars } from "@react-three/drei"
+import { OrbitControls, Stars } from "@react-three/drei"
 import { useFrame, useLoader, useThree } from "@react-three/fiber"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import {
   AdditiveBlending,
   BackSide,
@@ -14,7 +14,7 @@ import {
 import type { CountryRecord, NamedLine } from "../geo/catalog"
 import { isoOf, type Place } from "../geo/catalog"
 import { getCatalog, pickCountry } from "../geo/catalog"
-import { EARTH_R, cameraFor, geometryFromGeoJSON, latLngToVec, vecToLatLng } from "./geo"
+import { EARTH_R, cameraFor, geometryFromGeoJSON, vecToLatLng } from "./geo"
 
 export type Layers = {
   relief: boolean
@@ -38,6 +38,7 @@ type Props = {
   flyTo: { lat: number; lng: number; dist: number } | null
   lod: number
   onPick: (hit: { iso: string | null; lat: number; lng: number }) => void
+  onHover?: (hit: { iso: string | null; name: string | null; x: number; y: number } | null) => void
 }
 
 function ClimateShell({ on }: { on: boolean }) {
@@ -98,6 +99,7 @@ export function EarthScene({
   flyTo,
   lod: _lod,
   onPick,
+  onHover,
 }: Props) {
   const day = useLoader(TextureLoader, `${import.meta.env.BASE_URL}textures/earth-day.jpg`)
   const bump = useLoader(TextureLoader, `${import.meta.env.BASE_URL}textures/earth-bump.jpg`)
@@ -141,24 +143,7 @@ export function EarthScene({
     [selectedFeature],
   )
 
-  const [hoverIso, setHoverIso] = useState<string | null>(null)
   const lastHover = useRef<string | null>(null)
-
-  const named = useMemo(() => {
-    const out: { key: string; name: string; lat: number; lng: number; kind: string }[] = []
-    const cat = getCatalog()
-    const showIso = selectedIso || highlightIso
-    const rec = showIso ? cat?.byIso.get(showIso) : undefined
-    if (rec) out.push({ key: `sel-${rec.iso}`, name: rec.name, lat: rec.lat, lng: rec.lng, kind: "select" })
-    if (hoverIso && hoverIso !== showIso) {
-      const h = cat?.byIso.get(hoverIso)
-      if (h) out.push({ key: `hov-${h.iso}`, name: h.name, lat: h.lat, lng: h.lng, kind: "hover" })
-    }
-    if (rec && layers.capitals && rec.capital) {
-      out.push({ key: `cap-${rec.iso}`, name: rec.capital, lat: rec.lat + 0.8, lng: rec.lng, kind: "city" })
-    }
-    return out
-  }, [selectedIso, highlightIso, hoverIso, layers.capitals])
 
   return (
     <group>
@@ -177,13 +162,16 @@ export function EarthScene({
         onPointerMove={(e) => {
           const { lat, lng } = vecToLatLng(e.point)
           const iso = pickCountry(lng, lat, features)
-          if (iso === lastHover.current) return
           lastHover.current = iso
-          setHoverIso(iso)
+          const rec = iso ? getCatalog()?.byIso.get(iso) : undefined
+          const ne = e.nativeEvent as PointerEvent
+          const x = e.clientX || ne.clientX || 0
+          const y = e.clientY || ne.clientY || 0
+          onHover?.(rec ? { iso, name: rec.name, x, y } : null)
         }}
         onPointerOut={() => {
           lastHover.current = null
-          setHoverIso(null)
+          onHover?.(null)
         }}
       >
         <sphereGeometry args={[EARTH_R, 96, 64]} />
@@ -213,11 +201,6 @@ export function EarthScene({
           <lineBasicMaterial color="#5ee7ff" transparent opacity={0.95} />
         </lineSegments>
       ) : null}
-      {named.map((lb) => (
-        <Html key={lb.key} position={latLngToVec(lb.lat, lb.lng, EARTH_R + 0.05)} center style={{ pointerEvents: "none" }}>
-          <div className={`glabel glabel-${lb.kind}`}>{lb.name}</div>
-        </Html>
-      ))}
       <OrbitControls
         enablePan={false}
         minDistance={2.35}

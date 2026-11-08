@@ -34,6 +34,47 @@ button, input, select { font-family: inherit; }
 .world-canvas, .globe-wait { width: 100%; height: 100%; }
 .globe-wait { display: grid; place-items: center; color: var(--muted); }
 
+#root .gq-live.hud,
+.gq-live.hud {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.gq-tip {
+  position: fixed;
+  z-index: 8;
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: #071018;
+  background: linear-gradient(180deg, #8ff6ff, #5ee7ff);
+  border-radius: 999px;
+  padding: 5px 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 18px rgba(94, 231, 255, 0.35);
+  animation: rise 0.16s ease;
+}
+
+.gq-select-chip {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 64px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  background: rgba(8, 14, 22, 0.72);
+  border: 1px solid rgba(232, 197, 71, 0.45);
+  border-radius: 999px;
+  padding: 6px 12px;
+  backdrop-filter: blur(12px);
+  animation: rise 0.2s ease;
+}
+
 .hud {
   position: relative;
   height: 100%;
