@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { LANDMARKS, NEIGHBORS, getCatalog, loadCatalog } from "../geo/catalog"
 import { formatClock } from "./logic"
 import { FLAG_MODES, STORY_MISSIONS, type StoryMission } from "./storyMissions"
-import { GlobeMap } from "./GlobeMap"
-import { LandmarkWorld } from "../three/LandmarkWorld"
+import { StageView } from "../three/StageView"
 import { useGame } from "../store/gameStore"
 
 function FlagImg({ iso }: { iso: string }) {
@@ -186,98 +185,156 @@ export function GameShell() {
     setHintOn(false)
   }
 
-  const onMap = stage !== "discover"
+  const discover = stage === "discover"
+  const missionIndex = mission ? Math.max(1, STORY_MISSIONS.findIndex((m) => m.id === mission.id) + 1) : stage === "explore" ? 0 : 1
+  const level = Math.floor(progress.xp / 120) + 1
+  const xpInto = progress.xp % 120
+  const missionProgress = Math.min(1, progress.missionsDone.length / Math.max(1, STORY_MISSIONS.length))
+
+  const leftTitle =
+    stage === "explore" ? "Исследуй" : stage === "discover" ? "Открой место" : stage === "journal" ? "Журнал" : stage === "settings" ? "Настройки" : mission?.title ?? "Миссия"
+  const leftBrief =
+    stage === "explore"
+      ? "Вращай Землю, приближай, кликай страны. Сначала смотри, потом задание."
+      : stage === "discover"
+        ? landmark?.fact
+        : stage === "journal"
+          ? "Записи экспедиции."
+          : stage === "settings"
+            ? "Язык: русский (i18n готов к другим). Сложность меняет таймер миссий."
+            : mission?.story
 
   return (
     <div className="hud">
       <header className="hud-top">
-        <div>
+        <div className="brand">
           <strong>GEO QUEST</strong>
-          <span>{profile?.name}</span>
+          <span className="pilot">{profile?.name}</span>
         </div>
         <div className="hud-xp">
-          XP {progress.xp} · ◆ {progress.coins}
+          <span>ур. {level}</span>
+          <span className="sep" />
+          <span>{progress.xp} XP</span>
+          <span className="sep" />
+          <span>◆ {progress.coins}</span>
         </div>
       </header>
 
       <aside className="hud-left">
-        {stage === "explore" ? (
-          <>
-            <h3>Исследуй</h3>
-            <p>Вращай Землю, приближай, кликай страны. Сначала смотри, потом задание.</p>
-            <p className="tiny">Слои подписей густеют при приближении.</p>
-          </>
-        ) : null}
-        {stage === "discover" && landmark ? (
-          <>
-            <h3>Открой место</h3>
-            <p>{landmark.fact}</p>
-            {point ? (
-              <div className="recap">
-                <strong>{point.title}</strong>
-                <p>{point.text}</p>
-              </div>
-            ) : (
-              <p className="tiny">Кликай золотые точки на сцене.</p>
-            )}
-            <button type="button" className="btn" onClick={() => setStage("mission")}>
-              К миссии по территории
-            </button>
-          </>
-        ) : null}
-        {(stage === "mission" || stage === "flag") && mission ? (
-          <>
-            <h3>{mission.title}</h3>
-            <p>{mission.story}</p>
-            <p>
-              <strong>Цель:</strong> {mission.goal}
+        <article className="mission-card" key={stage + (mission?.id ?? "")}>
+          <p className="mission-no">{String(missionIndex).padStart(2, "0")}</p>
+          <h3>{leftTitle}</h3>
+          <p className="brief">{leftBrief}</p>
+          {(stage === "mission" || stage === "flag") && mission ? (
+            <>
+              <p className="goal">
+                <span>Цель игрока</span>
+                {mission.goal}
+              </p>
+              <p className="xp-reward">+{mission.xp} XP</p>
+            </>
+          ) : null}
+          {stage === "explore" ? (
+            <p className="goal">
+              <span>Цель игрока</span>
+              Изучи территорию. Имена стран — только при наведении или выборе.
             </p>
-            {hintOn ? <p className="hint-box">{mission.hint}</p> : null}
-            <button type="button" className="btn ghost" onClick={() => setHintOn(true)}>
-              Подсказка
-            </button>
-            {lastFeedback ? <p className={lastFeedback.ok ? "ok" : "bad"}>{lastFeedback.text}</p> : null}
-            {lastFeedback?.ok ? <p className="recap">{mission.recap}</p> : null}
-          </>
-        ) : null}
-        {stage === "journal" ? (
-          <>
-            <h3>Журнал</h3>
+          ) : null}
+          {stage === "discover" && landmark ? (
+            <>
+              {point ? (
+                <div className="recap">
+                  <strong>{point.title}</strong>
+                  <p>{point.text}</p>
+                </div>
+              ) : (
+                <p className="goal">
+                  <span>Цель игрока</span>
+                  Кликай золотые точки на сцене.
+                </p>
+              )}
+              <button type="button" className="btn" onClick={() => setStage("mission")}>
+                К миссии по территории
+              </button>
+            </>
+          ) : null}
+          {(stage === "mission" || stage === "flag") && mission ? (
+            <>
+              {hintOn ? <p className="hint-box">{mission.hint}</p> : null}
+              <button type="button" className="btn ghost" onClick={() => setHintOn(true)}>
+                Подсказка
+              </button>
+              {lastFeedback ? <p className={lastFeedback.ok ? "ok" : "bad"}>{lastFeedback.text}</p> : null}
+              {lastFeedback?.ok ? <p className="recap">{mission.recap}</p> : null}
+            </>
+          ) : null}
+          {stage === "journal" ? (
             <ul className="journal">
               {progress.journal.length === 0 ? <li>Пока пусто — исследуй мир.</li> : progress.journal.map((j) => <li key={j.at}>{j.text}</li>)}
             </ul>
-          </>
-        ) : null}
-        {stage === "settings" ? (
-          <>
-            <h3>Настройки</h3>
-            <p>Язык: русский (i18n готов к другим).</p>
-            <p>Сложность меняет таймер миссий.</p>
-            {(["easy", "medium", "hard"] as const).map((d) => (
-              <button key={d} type="button" className={progress.difficulty === d ? "chip on" : "chip"} onClick={() => useGame.getState().setDifficulty(d)}>
-                {d}
-              </button>
-            ))}
-          </>
-        ) : null}
+          ) : null}
+          {stage === "settings" ? (
+            <div className="diff-row">
+              {(["easy", "medium", "hard"] as const).map((d) => (
+                <button key={d} type="button" className={progress.difficulty === d ? "chip on" : "chip"} onClick={() => useGame.getState().setDifficulty(d)}>
+                  {d}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="mission-progress">
+            <span>Прогресс экспедиции</span>
+            <div className="bar">
+              <i style={{ width: `${Math.round(missionProgress * 100)}%` }} />
+            </div>
+          </div>
+        </article>
       </aside>
 
       <main className="hud-center">
-        {onMap ? <GlobeMap onPick={judge} /> : <LandmarkWorld scene={landmark.scene} onPoint={(title, text) => setPoint({ title, text })} />}
+        <StageView
+          discover={discover}
+          scene={landmark.scene}
+          onPick={judge}
+          onPoint={(title, text) => setPoint({ title, text })}
+        />
       </main>
 
       <aside className="hud-right">
         {(stage === "mission" || stage === "flag") && mission ? (
-          <div className="timer-xl">{formatClock(left)}</div>
-        ) : null}
+          <div className="timer-xl" key={mission.id}>
+            {formatClock(left)}
+          </div>
+        ) : (
+          <div className="timer-idle">EXPLORE</div>
+        )}
+        <div className="stat-stack">
+          <div className="stat">
+            <span>Уровень</span>
+            <b>{level}</b>
+          </div>
+          <div className="xp-track">
+            <span>
+              XP {progress.xp} · {xpInto}/120
+            </span>
+            <div className="bar">
+              <i style={{ width: `${(xpInto / 120) * 100}%` }} />
+            </div>
+          </div>
+          <div className="stat">
+            <span>Счёт</span>
+            <b>◆ {progress.coins}</b>
+          </div>
+        </div>
         {stage === "flag" && flagRound?.targetIso ? (
-          <>
+          <div className="flag-hunt">
+            <p>Кликни эту страну на глобусе</p>
             <FlagImg iso={flagRound.targetIso} />
             {flagRound.kind !== "flag" ? <p className="tiny">{flagRound.story}</p> : null}
-          </>
+          </div>
         ) : null}
-        {country ? (
-          <div className="country-card">
+        {stage !== "flag" && country ? (
+          <div className="country-card" key={country.iso}>
             <img className="flag-sm" src={`${import.meta.env.BASE_URL}flags/${country.iso.toLowerCase()}.svg`} alt="" />
             <h3>{country.name}</h3>
             <p>Столица: {country.capital || "—"}</p>
@@ -291,9 +348,8 @@ export function GameShell() {
               </button>
             ))}
           </div>
-        ) : (
-          <p className="tiny">Кликни страну — справа появится справка.</p>
-        )}
+        ) : null}
+        {stage !== "flag" && !country ? <p className="tiny">Наведи или выбери страну — имя появится на глобусе.</p> : null}
         {lastHit ? (
           <p className="tiny">
             Курсор: {lastHit.lat.toFixed(1)}°, {lastHit.lng.toFixed(1)}°
@@ -309,20 +365,34 @@ export function GameShell() {
               ["climate", "Климат"],
             ] as const
           ).map(([k, label]) => (
-            <label key={k}>
-              <input type="checkbox" checked={layers[k]} onChange={(e) => setLayers({ [k]: e.target.checked })} />
+            <button
+              key={k}
+              type="button"
+              className={layers[k] ? "layer-sw on" : "layer-sw"}
+              aria-pressed={layers[k]}
+              onClick={() => setLayers({ [k]: !layers[k] })}
+            >
+              <span className="layer-knob" />
               {label}
-            </label>
+            </button>
           ))}
         </div>
       </aside>
 
       <nav className="hud-bottom">
         <button type="button" className={stage === "explore" ? "on" : ""} onClick={() => setStage("explore")}>
-          Исследуй
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" />
+            <path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16" />
+          </svg>
+          <span>Исследуй</span>
         </button>
         <button type="button" className={stage === "discover" ? "on" : ""} onClick={() => (landmarkId ? setStage("discover") : openLandmark("issyk"))}>
-          Открой
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 4v4M12 16v4M4 12h4M16 12h4" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <span>Открой</span>
         </button>
         <button
           type="button"
@@ -332,10 +402,16 @@ export function GameShell() {
             if (!mission) startMission(STORY_MISSIONS[0])
           }}
         >
-          Миссия
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 4h10l-2 4 2 4H6v8" />
+          </svg>
+          <span>Миссия</span>
         </button>
         <button type="button" className={stage === "flag" ? "on" : ""} onClick={() => newFlagRound("flag")}>
-          Флаги
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 4v16M6 4h10l-2 4 2 4H6" />
+          </svg>
+          <span>Флаги</span>
         </button>
         <select
           className="mission-select"
@@ -362,15 +438,23 @@ export function GameShell() {
           <option value="neighbors">Охотник: соседи</option>
           <option value="shape">Охотник: контур</option>
         </select>
-        <button type="button" onClick={() => setStage("journal")}>
-          Журнал
+        <button type="button" className={stage === "journal" ? "on" : ""} onClick={() => setStage("journal")}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="6" y="4" width="12" height="16" rx="1" />
+            <path d="M9 8h6M9 12h6M9 16h4" />
+          </svg>
+          <span>Журнал</span>
         </button>
-        <button type="button" onClick={() => setStage("settings")}>
-          Настройки
+        <button type="button" className={stage === "settings" ? "on" : ""} onClick={() => setStage("settings")}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+          </svg>
+          <span>Настройки</span>
         </button>
         {(stage === "mission" || stage === "flag") && mission ? (
           <button type="button" className="ghost" onClick={() => clearMission()}>
-            Сдать карту
+            <span>Сдать карту</span>
           </button>
         ) : null}
       </nav>

@@ -1,21 +1,16 @@
-import { Canvas, useThree } from "@react-three/fiber"
-import { useEffect, type ReactNode } from "react"
+import { Canvas } from "@react-three/fiber"
+import { type ReactNode } from "react"
+import { WebGLRenderer } from "three"
 
-function Disposer() {
-  const { gl, scene } = useThree()
-  useEffect(() => {
-    return () => {
-      scene.traverse((obj) => {
-        const mesh = obj as { geometry?: { dispose: () => void }; material?: { dispose: () => void } | { dispose: () => void }[] }
-        mesh.geometry?.dispose()
-        const mat = mesh.material
-        if (Array.isArray(mat)) mat.forEach((m) => m.dispose())
-        else mat?.dispose()
-      })
-      gl.dispose()
-    }
-  }, [gl, scene])
-  return null
+function bindGlLog(gl: WebGLRenderer) {
+  const el = gl.domElement
+  const lost = (event: Event) => {
+    event.preventDefault()
+    console.error("[geo-quest] WebGL context lost", event)
+  }
+  const restored = () => console.warn("[geo-quest] WebGL context restored")
+  el.addEventListener("webglcontextlost", lost)
+  el.addEventListener("webglcontextrestored", restored)
 }
 
 export function WorldCanvas({
@@ -25,23 +20,33 @@ export function WorldCanvas({
   children: ReactNode
   cameraZ?: number
 }) {
+  const land = cameraZ > 8
   return (
     <Canvas
       className="world-canvas"
       camera={{
-        position: cameraZ > 8 ? [11, 7.5, cameraZ] : [0, 0.35, cameraZ],
-        fov: 40,
+        position: land ? [11, 7.5, cameraZ] : [0, 0.35, cameraZ],
+        fov: 42,
         near: 0.1,
-        far: 80,
+        far: 120,
       }}
-      dpr={[1, 1.75]}
-      gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
-      shadows
+      dpr={[1, 1.5]}
+      gl={{
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance",
+        failIfMajorPerformanceCaveat: false,
+        preserveDrawingBuffer: true,
+      }}
+      shadows={false}
+      frameloop="always"
       onCreated={({ gl }) => {
-        gl.setClearColor("#061018")
+        gl.setClearColor("#8ec4e6")
+        bindGlLog(gl)
+        console.info("[geo-quest] WebGL", gl.getContext().getParameter(gl.getContext().VERSION))
       }}
+      onPointerMissed={() => undefined}
     >
-      <Disposer />
       {children}
     </Canvas>
   )

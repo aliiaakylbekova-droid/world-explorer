@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { loadCatalog, loadHiResCountries, type CountryRecord } from "../geo/catalog"
 import { EarthScene } from "../three/EarthScene"
+import { CameraRig } from "../three/CameraRig"
+import { ErrorBoundary } from "../three/ErrorBoundary"
 import { WorldCanvas } from "../three/WorldCanvas"
 import { useGame } from "../store/gameStore"
-import { useFrame } from "@react-three/fiber"
-import { useThree } from "@react-three/fiber"
+import { useFrame, useThree } from "@react-three/fiber"
 
 function LodTracker({ onLod }: { onLod: (lod: number) => void }) {
   const { camera } = useThree()
@@ -20,13 +21,12 @@ function LodTracker({ onLod }: { onLod: (lod: number) => void }) {
   return null
 }
 
-export function GlobeMap({ onPick }: { onPick: (hit: { iso: string | null; lat: number; lng: number }) => void }) {
+export function EarthBundle({ onPick }: { onPick: (hit: { iso: string | null; lat: number; lng: number }) => void }) {
   const layers = useGame((s) => s.layers)
   const selectedIso = useGame((s) => s.selectedIso)
   const highlightIso = useGame((s) => s.highlightIso)
   const flyTo = useGame((s) => s.flyTo)
   const [lod, setLod] = useState(1)
-  const [ready, setReady] = useState(false)
   const [countries, setCountries] = useState<CountryRecord[]>([])
   const [pack, setPack] = useState<Awaited<ReturnType<typeof loadCatalog>> | null>(null)
 
@@ -34,7 +34,6 @@ export function GlobeMap({ onPick }: { onPick: (hit: { iso: string | null; lat: 
     void loadCatalog().then((c) => {
       setPack(c)
       setCountries(c.countries)
-      setReady(true)
     })
   }, [])
 
@@ -47,12 +46,10 @@ export function GlobeMap({ onPick }: { onPick: (hit: { iso: string | null; lat: 
     return lod >= 2 && pack.features50 ? pack.features50 : pack.features
   }, [pack, lod])
 
-  if (!ready || !pack) {
-    return <div className="globe-wait">Загрузка Земли…</div>
-  }
+  if (!pack) return null
 
   return (
-    <WorldCanvas key="earth" cameraZ={6.4}>
+    <>
       <LodTracker onLod={setLod} />
       <EarthScene
         features={features}
@@ -69,6 +66,17 @@ export function GlobeMap({ onPick }: { onPick: (hit: { iso: string | null; lat: 
         lod={lod}
         onPick={onPick}
       />
-    </WorldCanvas>
+    </>
+  )
+}
+
+export function GlobeMap({ onPick }: { onPick: (hit: { iso: string | null; lat: number; lng: number }) => void }) {
+  return (
+    <ErrorBoundary>
+      <WorldCanvas cameraZ={6.4}>
+        <CameraRig mode="earth" />
+        <EarthBundle onPick={onPick} />
+      </WorldCanvas>
+    </ErrorBoundary>
   )
 }

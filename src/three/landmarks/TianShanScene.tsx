@@ -1,4 +1,4 @@
-import { Html, OrbitControls } from "@react-three/drei"
+import { Html } from "@react-three/drei"
 import { useMemo } from "react"
 import { Color, DoubleSide, Float32BufferAttribute, PlaneGeometry } from "three"
 
@@ -41,7 +41,7 @@ function Terrain() {
   }, [])
   return (
     <mesh geometry={geo} receiveShadow castShadow>
-      <meshStandardMaterial vertexColors roughness={0.92} />
+      <meshStandardMaterial vertexColors color="#ffffff" roughness={0.92} metalness={0} />
     </mesh>
   )
 }
@@ -50,13 +50,13 @@ export function TianShanScene({ onPoint }: { onPoint: (title: string, text: stri
   return (
     <>
       <color attach="background" args={["#9ec7e6"]} />
-      <fog attach="fog" args={["#c5d9ea", 18, 48]} />
-      <hemisphereLight args={["#d7e8ff", "#6b5a40", 0.7]} />
-      <directionalLight position={[12, 16, 6]} intensity={1.8} color="#fff5d6" castShadow shadow-mapSize={1024} />
+      <ambientLight intensity={0.55} />
+      <hemisphereLight args={["#d7e8ff", "#6b5a40", 0.85]} />
+      <directionalLight position={[12, 16, 6]} intensity={2.1} color="#fff5d6" />
       <Terrain />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.22, 0.2]} scale={[1, 0.46, 1]} receiveShadow>
-        <circleGeometry args={[5.8, 48]} />
-        <meshStandardMaterial color="#2f90b8" roughness={0.12} metalness={0.22} side={DoubleSide} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.38, 0.15]} scale={[1, 0.55, 1]}>
+        <circleGeometry args={[6.2, 48]} />
+        <meshStandardMaterial color="#1f7aa8" roughness={0.18} metalness={0.08} side={DoubleSide} />
       </mesh>
       <Html position={[0, 1.1, 0]} center>
         <button type="button" className="hotspot" onClick={() => onPoint("Иссык-Куль", "Соль и глубина почти не дают озеру замёрзнуть.")}>
@@ -73,7 +73,6 @@ export function TianShanScene({ onPoint }: { onPoint: (title: string, text: stri
           К северу
         </button>
       </Html>
-      <OrbitControls minDistance={6} maxDistance={28} target={[0, 1.2, 0]} />
     </>
   )
 }

@@ -15,6 +15,13 @@ export type GeoQuestApi = {
 declare global {
   interface Window {
     geoQuest?: GeoQuestApi
+    geoQuestDebug?: {
+      fly: (lat: number, lng: number, dist?: number) => void
+      stage: (s: "register" | "explore" | "discover" | "mission" | "flag" | "journal" | "settings") => void
+      landmark: (id: string) => void
+      pick: (iso: string | null, lat: number, lng: number) => void
+      flag: () => void
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 import { Html, OrbitControls, Stars } from "@react-three/drei"
 import { useFrame, useLoader, useThree } from "@react-three/fiber"
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   AdditiveBlending,
   BackSide,
@@ -13,7 +13,7 @@ import {
 } from "three"
 import type { CountryRecord, NamedLine } from "../geo/catalog"
 import { isoOf, type Place } from "../geo/catalog"
-import { pickCountry } from "../geo/catalog"
+import { getCatalog, pickCountry } from "../geo/catalog"
 import { EARTH_R, cameraFor, geometryFromGeoJSON, latLngToVec, vecToLatLng } from "./geo"
 
 export type Layers = {
@@ -86,17 +86,17 @@ function Atmosphere() {
 
 export function EarthScene({
   features,
-  countries,
-  cities,
+  countries: _countries,
+  cities: _cities,
   rivers,
-  lakes,
-  marine,
-  mountains,
+  lakes: _lakes,
+  marine: _marine,
+  mountains: _mountains,
   selectedIso,
   highlightIso,
   layers,
   flyTo,
-  lod,
+  lod: _lod,
   onPick,
 }: Props) {
   const day = useLoader(TextureLoader, `${import.meta.env.BASE_URL}textures/earth-day.jpg`)
@@ -115,7 +115,7 @@ export function EarthScene({
   }, [flyTo])
 
   useFrame((_, dt) => {
-    if (sun.current) sun.current.position.set(8, 3.2, 4)
+    if (sun.current) sun.current.position.copy(camera.position)
     if (fly.current > 0) {
       fly.current = Math.max(0, fly.current - dt * 0.7)
       camera.position.lerp(target.current, Math.min(1, dt * 1.8))
@@ -141,44 +141,29 @@ export function EarthScene({
     [selectedFeature],
   )
 
-  const labels = useMemo(() => {
+  const [hoverIso, setHoverIso] = useState<string | null>(null)
+  const lastHover = useRef<string | null>(null)
+
+  const named = useMemo(() => {
     const out: { key: string; name: string; lat: number; lng: number; kind: string }[] = []
-    if (lod >= 0) {
-      for (const m of marine.filter((x) => x.kind === "ocean")) {
-        out.push({ key: `o-${m.name}`, name: m.name, lat: m.lat, lng: m.lng, kind: "ocean" })
-      }
+    const cat = getCatalog()
+    const showIso = selectedIso || highlightIso
+    const rec = showIso ? cat?.byIso.get(showIso) : undefined
+    if (rec) out.push({ key: `sel-${rec.iso}`, name: rec.name, lat: rec.lat, lng: rec.lng, kind: "select" })
+    if (hoverIso && hoverIso !== showIso) {
+      const h = cat?.byIso.get(hoverIso)
+      if (h) out.push({ key: `hov-${h.iso}`, name: h.name, lat: h.lat, lng: h.lng, kind: "hover" })
     }
-    if (lod >= 1) {
-      for (const c of countries.slice(0, lod >= 2 ? 22 : 12)) {
-        if (Math.abs(c.lat) > 2 || Math.abs(c.lng) > 2) {
-          out.push({ key: `c-${c.iso}`, name: c.name, lat: c.lat, lng: c.lng, kind: "country" })
-        }
-      }
+    if (rec && layers.capitals && rec.capital) {
+      out.push({ key: `cap-${rec.iso}`, name: rec.capital, lat: rec.lat + 0.8, lng: rec.lng, kind: "city" })
     }
-    if (lod >= 2 && layers.capitals) {
-      for (const city of cities.filter((p) => p.kind.includes("capital") || p.rank <= 1).slice(0, 14)) {
-        out.push({ key: `p-${city.name}`, name: city.name, lat: city.lat, lng: city.lng, kind: "city" })
-      }
-    }
-    if (lod >= 2 && layers.rivers) {
-      for (const r of rivers.slice(0, 12)) {
-        out.push({ key: `r-${r.name}-${r.lat}`, name: r.name, lat: r.lat, lng: r.lng, kind: "river" })
-      }
-      for (const l of lakes.slice(0, 8)) out.push({ key: `l-${l.name}`, name: l.name, lat: l.lat, lng: l.lng, kind: "lake" })
-    }
-    if (lod >= 2) {
-      for (const m of mountains.slice(0, 8)) out.push({ key: `m-${m.name}`, name: m.name, lat: m.lat, lng: m.lng, kind: "mtn" })
-      for (const sea of marine.filter((x) => x.kind === "sea").slice(0, 8)) {
-        out.push({ key: `s-${sea.name}`, name: sea.name, lat: sea.lat, lng: sea.lng, kind: "sea" })
-      }
-    }
-    return out.slice(0, 36)
-  }, [lod, countries, cities, rivers, lakes, marine, mountains, layers.capitals, layers.rivers])
+    return out
+  }, [selectedIso, highlightIso, hoverIso, layers.capitals])
 
   return (
     <group>
       <color attach="background" args={["#07101c"]} />
-      <ambientLight intensity={0.38} />
+      <ambientLight intensity={0.62} />
       <hemisphereLight args={[new Color("#9ec9ff"), new Color("#1a120c"), 0.35]} />
       <directionalLight ref={sun} intensity={2.15} color="#fff4d6" castShadow position={[8, 3, 4]} />
       <Stars radius={40} depth={20} count={1200} factor={2} fade speed={0.4} />
@@ -188,6 +173,17 @@ export function EarthScene({
           const { lat, lng } = vecToLatLng(e.point)
           const iso = pickCountry(lng, lat, features)
           onPick({ iso, lat, lng })
+        }}
+        onPointerMove={(e) => {
+          const { lat, lng } = vecToLatLng(e.point)
+          const iso = pickCountry(lng, lat, features)
+          if (iso === lastHover.current) return
+          lastHover.current = iso
+          setHoverIso(iso)
+        }}
+        onPointerOut={() => {
+          lastHover.current = null
+          setHoverIso(null)
         }}
       >
         <sphereGeometry args={[EARTH_R, 96, 64]} />
@@ -214,18 +210,11 @@ export function EarthScene({
       ) : null}
       {selectedGeo ? (
         <lineSegments geometry={selectedGeo}>
-          <lineBasicMaterial color="#e8c547" linewidth={2} />
+          <lineBasicMaterial color="#5ee7ff" transparent opacity={0.95} />
         </lineSegments>
       ) : null}
-      {labels.map((lb) => (
-        <Html
-          key={lb.key}
-          position={latLngToVec(lb.lat, lb.lng, EARTH_R + 0.04)}
-          center
-          sprite
-          distanceFactor={72}
-          style={{ pointerEvents: "none" }}
-        >
+      {named.map((lb) => (
+        <Html key={lb.key} position={latLngToVec(lb.lat, lb.lng, EARTH_R + 0.05)} center style={{ pointerEvents: "none" }}>
           <div className={`glabel glabel-${lb.kind}`}>{lb.name}</div>
         </Html>
       ))}
@@ -233,10 +222,10 @@ export function EarthScene({
         enablePan={false}
         minDistance={2.35}
         maxDistance={10}
-        zoomSpeed={0.85}
-        rotateSpeed={0.45}
+        zoomSpeed={0.7}
+        rotateSpeed={0.42}
         enableDamping
-        dampingFactor={0.08}
+        dampingFactor={0.06}
       />
     </group>
   )

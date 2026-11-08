@@ -1,4 +1,4 @@
-import { Html, OrbitControls } from "@react-three/drei"
+import { Html } from "@react-three/drei"
 
 function Pyramid({
   position,
@@ -48,7 +48,7 @@ export function GizaScene({ onPoint }: { onPoint: (title: string, text: string) 
   return (
     <>
       <color attach="background" args={["#f0d5a0"]} />
-      <fog attach="fog" args={["#edd6a6", 22, 55]} />
+      <ambientLight intensity={0.55} />
       <hemisphereLight args={["#ffe6b0", "#8a6a3a", 0.7]} />
       <directionalLight position={[10, 18, 8]} intensity={2.2} color="#ffe6b3" castShadow />
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -78,7 +78,6 @@ export function GizaScene({ onPoint }: { onPoint: (title: string, text: string) 
           Нил
         </button>
       </Html>
-      <OrbitControls minDistance={6} maxDistance={28} target={[0, 1.2, 0]} />
     </>
   )
 }

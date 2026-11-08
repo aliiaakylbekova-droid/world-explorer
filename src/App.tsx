@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { GameShell } from "./game/GameShell"
 import { RegisterScreen } from "./screens/RegisterScreen"
-import { useGame } from "./store/gameStore"
+import { useGame, type Stage } from "./store/gameStore"
 
 export default function App() {
   const hydrate = useGame((s) => s.hydrate)
@@ -12,6 +12,19 @@ export default function App() {
   useEffect(() => {
     void hydrate()
   }, [hydrate])
+
+  useEffect(() => {
+    window.geoQuestDebug = {
+      fly: (lat, lng, dist) => useGame.getState().fly(lat, lng, dist),
+      stage: (s) => useGame.getState().setStage(s as Stage),
+      landmark: (id) => useGame.getState().openLandmark(id),
+      pick: (iso, lat, lng) => useGame.getState().pick({ iso, lat, lng }),
+      flag: () => {
+        const btn = Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.includes("Флаги"))
+        btn?.click()
+      },
+    }
+  }, [])
 
   void locale
 

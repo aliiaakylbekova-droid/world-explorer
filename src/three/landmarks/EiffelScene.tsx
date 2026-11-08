@@ -1,4 +1,4 @@
-import { Html, OrbitControls } from "@react-three/drei"
+import { Html } from "@react-three/drei"
 
 function Beam(props: { position: [number, number, number]; args: [number, number, number]; rotation?: [number, number, number] }) {
   return (
@@ -24,9 +24,9 @@ export function EiffelScene({ onPoint }: { onPoint: (title: string, text: string
   return (
     <>
       <color attach="background" args={["#b9d4ee"]} />
-      <fog attach="fog" args={["#cfe0f0", 20, 50]} />
-      <hemisphereLight args={["#e7f1ff", "#6a6248", 0.65]} />
-      <directionalLight position={[8, 14, 6]} intensity={1.9} color="#fff3cc" castShadow />
+      <ambientLight intensity={0.6} />
+      <hemisphereLight args={["#e7f1ff", "#6a6248", 0.85]} />
+      <directionalLight position={[8, 14, 6]} intensity={2.2} color="#fff3cc" />
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[40, 40]} />
         <meshStandardMaterial color="#6f8a58" roughness={0.9} />
@@ -73,7 +73,6 @@ export function EiffelScene({ onPoint }: { onPoint: (title: string, text: string
           324 м
         </button>
       </Html>
-      <OrbitControls minDistance={5} maxDistance={22} target={[0, 2.8, 0]} />
     </>
   )
 }
