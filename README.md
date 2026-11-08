@@ -1,29 +1,44 @@
-# WORLD EXPLORER
+# GEO QUEST
 
-Fullscreen geography quiz for grade 7. The world map fills the screen for the whole game. Fifteen questions, twenty minutes, score out of 1500. The interface is in Russian.
+**Explore the World. Discover the Unknown.**
 
-## Run locally
+Офлайн-игра для Windows: Electron + React + TypeScript + Three.js. Интерфейс на русском. Интернет не нужен.
+
+## Запуск для разработки
 
 ```bash
 npm install
-npm run dev
+npm run electron:dev
 ```
 
-Open [http://127.0.0.1:47231](http://127.0.0.1:47231). The dev server listens on `0.0.0.0:47231`.
+Откроется окно **GEO QUEST** (не браузер). На Linux в контейнере может понадобиться `ELECTRON_NO_SANDBOX=1`.
 
-## What is on screen
+Только рендерер (отладка UI): `npm run dev` — это не продукт для игрока.
 
-- Esri World Street Map (no API key), shifted with a light parchment filter so oceans read as parchment, land as beige, and borders as brown. CARTO’s free tiles watermark without a key, and the public OpenStreetMap tile server blocks this app. If the street tiles fail, the map falls back to Esri’s World Physical Map with the same treatment.
-- A compact top bar: title, question number, countdown, score, and progress.
-- A bottom panel with the question and four answers.
-- After the quiz, the result and a review of every answer stay over the map.
-
-Progress is stored only in the browser. Refreshing the page starts over.
-
-## Production build
+## Сборка установщика Windows
 
 ```bash
-npm run build
+npm run dist:win
 ```
 
-Vite writes the site to `dist`. On Vercel, set the framework to Vite, leave the root directory as the repository root, build command `npm run build`, and output directory `dist`.
+Готовые файлы появятся в `release/`:
+
+- `GEO QUEST Setup.exe` — NSIS-установщик
+- `GEO QUEST Portable.exe` — портативная версия, если сборка её создала
+
+После установки игра запускается ярлыком, без терминала и без localhost.
+
+## Что внутри
+
+- Регистрация исследователя, сохранение профиля и прогресса (JSON в userData через безопасный IPC)
+- Главное меню с интерактивным 3D-глобусом (вращение и масштаб)
+- World Explorer: континенты, страны, переход камеры, объёмные 3D-достопримечательности
+- Geo Mission: столицы, флаги, достопримечательности, поиск на карте, факты; таймер и сложность
+- World Challenge: локальная таблица лидеров (заготовка под Supabase, без фейкового онлайна)
+- Приключение Центральной Азии: KG / KZ / UZ / TJ / TM — справка, флаг, 3D-места, ≥5 заданий
+- Тренировка, коллекция (XP, монеты, достижения), настройки
+- Квиз 7 класса из прежнего World Explorer встроен в факты и тренировку
+
+## Безопасность Electron
+
+`contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, preload с белым списком IPC.

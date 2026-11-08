@@ -1,18 +1,30 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite"
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "electron-file-protocol",
+      transformIndexHtml(html) {
+        return html.replaceAll(" crossorigin", "")
+      },
+    },
+  ],
+  base: "./",
   server: {
-    host: "0.0.0.0",
+    host: "127.0.0.1",
     port: 47231,
     strictPort: true,
-    allowedHosts: true,
   },
   preview: {
-    host: "0.0.0.0",
+    host: "127.0.0.1",
     port: 47231,
     strictPort: true,
+  },
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+    sourcemap: false,
   },
 })
