@@ -1,30 +1,14 @@
 import { create } from "zustand"
-import { ACHIEVEMENTS } from "../data/achievements"
-import type { ContinentId } from "../data/world"
-import type { Difficulty, MissionType } from "../data/missions"
+import { LANDMARKS } from "../geo/catalog"
+import type { StoryMission } from "../game/storyMissions"
 import type { Locale } from "../i18n"
 import { setLocale } from "../i18n"
+import type { Layers } from "../three/EarthScene"
 import type { Profile } from "../types/electron"
 
-export type Screen =
-  | "boot"
-  | "register"
-  | "menu"
-  | "explorer"
-  | "country"
-  | "mission"
-  | "challenge"
-  | "campaign"
-  | "campaign-country"
-  | "training"
-  | "collection"
-  | "settings"
+export type Stage = "register" | "explore" | "discover" | "mission" | "flag" | "journal" | "settings"
 
-export type LeaderRow = {
-  name: string
-  score: number
-  at: number
-}
+export type FlyTo = { lat: number; lng: number; dist: number } | null
 
 export type Progress = {
   xp: number
@@ -32,10 +16,9 @@ export type Progress = {
   achievements: string[]
   stamps: string[]
   visited: string[]
-  campaignDone: string[]
-  campaignAnswers: Record<string, number[]>
-  leaderboard: LeaderRow[]
-  difficulty: Difficulty
+  missionsDone: string[]
+  journal: { at: number; text: string }[]
+  difficulty: "easy" | "medium" | "hard"
   volume: number
   locale: Locale
 }
@@ -46,49 +29,49 @@ const defaultProgress = (): Progress => ({
   achievements: [],
   stamps: [],
   visited: [],
-  campaignDone: [],
-  campaignAnswers: {},
-  leaderboard: [],
+  missionsDone: [],
+  journal: [],
   difficulty: "medium",
   volume: 0.7,
   locale: "ru",
 })
 
 type GameState = {
-  screen: Screen
   ready: boolean
+  stage: Stage
   profile: Profile | null
   progress: Progress
-  continent: ContinentId
-  countryId: string | null
+  selectedIso: string | null
+  highlightIso: string | null
   landmarkId: string | null
-  missionType: MissionType
-  go: (screen: Screen) => void
+  layers: Layers
+  flyTo: FlyTo
+  lastHit: { lat: number; lng: number; iso: string | null } | null
+  mission: StoryMission | null
+  missionEndsAt: number | null
+  lastFeedback: { ok: boolean; text: string } | null
   hydrate: () => Promise<void>
   register: (name: string, avatar: string) => Promise<void>
-  setContinent: (id: ContinentId) => void
-  openCountry: (id: string) => void
-  selectCountry: (id: string) => void
-  setLandmark: (id: string) => void
-  setMissionType: (type: MissionType) => void
+  setStage: (stage: Stage) => void
+  pick: (hit: { iso: string | null; lat: number; lng: number }) => void
+  setLayers: (partial: Partial<Layers>) => void
+  openLandmark: (id: string) => void
+  startMission: (mission: StoryMission) => void
+  clearMission: () => void
   award: (xp: number, coins: number) => void
-  collectStamp: (id: string) => void
-  visit: (countryId: string) => void
-  unlock: (id: string) => void
-  addScore: (score: number) => void
-  markCampaign: (countryId: string, answers: number[]) => void
-  setDifficulty: (d: Difficulty) => void
+  note: (text: string) => void
+  completeMission: (id: string) => void
+  fly: (lat: number, lng: number, dist?: number) => void
+  setFeedback: (ok: boolean, text: string) => void
+  setDifficulty: (d: Progress["difficulty"]) => void
   setVolume: (v: number) => void
   setLocalePref: (locale: Locale) => void
   resetProgress: () => Promise<void>
 }
 
 async function persist(progress: Progress) {
-  if (window.geoQuest) {
-    await window.geoQuest.saveProgress(progress)
-    return
-  }
-  localStorage.setItem("gq-progress", JSON.stringify(progress))
+  if (window.geoQuest) await window.geoQuest.saveProgress(progress)
+  else localStorage.setItem("gq-progress", JSON.stringify(progress))
 }
 
 function grant(progress: Progress, id: string) {
@@ -97,52 +80,42 @@ function grant(progress: Progress, id: string) {
 }
 
 export const useGame = create<GameState>((set, get) => ({
-  screen: "boot",
   ready: false,
+  stage: "register",
   profile: null,
   progress: defaultProgress(),
-  continent: "asia",
-  countryId: null,
+  selectedIso: null,
+  highlightIso: null,
   landmarkId: null,
-  missionType: "capitals",
-
-  go: (screen) => {
-    const extra: Partial<GameState> = { screen }
-    if (screen === "explorer") {
-      const next = grant(get().progress, "globe-spin")
-      extra.progress = next
-      void persist(next)
-    }
-    set(extra)
-  },
+  layers: { relief: true, rivers: true, borders: true, capitals: true, climate: false },
+  flyTo: null,
+  lastHit: null,
+  mission: null,
+  missionEndsAt: null,
+  lastFeedback: null,
 
   hydrate: async () => {
     try {
       const api = window.geoQuest
       const withTime = async <T>(job: Promise<T> | undefined): Promise<T | null> => {
         if (!job) return null
-        return await Promise.race([
-          job,
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
-        ])
+        return Promise.race([job, new Promise<null>((r) => setTimeout(() => r(null), 2000))])
       }
       const profile =
         (await withTime(api?.getProfile())) ??
         (localStorage.getItem("gq-profile") ? (JSON.parse(localStorage.getItem("gq-profile")!) as Profile) : null)
-      const saved =
-        ((await withTime(api?.getProgress() as Promise<Progress | null> | undefined)) as Progress | null) ??
-        (localStorage.getItem("gq-progress") ? (JSON.parse(localStorage.getItem("gq-progress")!) as Progress) : null)
+      const saved = ((await withTime(api?.getProgress() as Promise<Progress> | undefined)) ??
+        (localStorage.getItem("gq-progress") ? JSON.parse(localStorage.getItem("gq-progress")!) : null)) as Progress | null
       const progress = saved ? { ...defaultProgress(), ...saved } : defaultProgress()
       setLocale(progress.locale)
       set({
         profile,
         progress,
         ready: true,
-        screen: profile ? "menu" : "register",
+        stage: profile ? "explore" : "register",
       })
-    } catch (error) {
-      console.error(error)
-      set({ ready: true, screen: "register", progress: defaultProgress() })
+    } catch {
+      set({ ready: true, stage: "register", progress: defaultProgress() })
     }
   },
 
@@ -150,85 +123,94 @@ export const useGame = create<GameState>((set, get) => ({
     const profile: Profile = { name: name.trim().slice(0, 40), avatar, createdAt: Date.now() }
     if (window.geoQuest) await window.geoQuest.saveProfile(profile)
     else localStorage.setItem("gq-profile", JSON.stringify(profile))
-    let progress = grant(get().progress, "first-step")
+    const progress = grant(get().progress, "first-step")
     await persist(progress)
-    set({ profile, progress, screen: "menu" })
+    set({ profile, progress, stage: "explore" })
   },
 
-  setContinent: (id) => set({ continent: id }),
-
-  selectCountry: (id) => {
-    get().visit(id)
-    set({ countryId: id })
+  setStage: (stage) => {
+    let progress = get().progress
+    if (stage === "explore") progress = grant(progress, "globe-spin")
+    set({ stage, lastFeedback: null, flyTo: stage === "discover" ? get().flyTo : get().flyTo })
+    void persist(progress)
+    if (progress !== get().progress) set({ progress })
   },
 
-  openCountry: (id) => {
-    get().selectCountry(id)
-    set({ screen: "country" })
+  pick: (hit) => {
+    const visited =
+      hit.iso && !get().progress.visited.includes(hit.iso) ? [...get().progress.visited, hit.iso] : get().progress.visited
+    const progress = { ...get().progress, visited }
+    set({
+      selectedIso: hit.iso,
+      lastHit: hit,
+      progress,
+      flyTo: hit.iso ? { lat: hit.lat, lng: hit.lng, dist: 3.6 } : { lat: hit.lat, lng: hit.lng, dist: 4.2 },
+    })
+    void persist(progress)
   },
 
-  setLandmark: (id) => set({ landmarkId: id }),
+  setLayers: (partial) => set({ layers: { ...get().layers, ...partial } }),
 
-  setMissionType: (type) => set({ missionType: type }),
+  openLandmark: (id) => {
+    const lm = LANDMARKS.find((l) => l.id === id)
+    if (!lm) return
+    const stamps = get().progress.stamps.includes(id) ? get().progress.stamps : [...get().progress.stamps, id]
+    const progress = { ...get().progress, stamps }
+    set({
+      landmarkId: id,
+      selectedIso: lm.country,
+      stage: "discover",
+      flyTo: { lat: lm.lat, lng: lm.lng, dist: 3.1 },
+      progress,
+    })
+    void persist(progress)
+  },
+
+  startMission: (mission) => {
+    const bonus = get().progress.difficulty === "hard" ? 0.7 : get().progress.difficulty === "easy" ? 1.4 : 1
+    set({
+      mission,
+      missionEndsAt: Date.now() + mission.timeMs * bonus,
+      lastFeedback: null,
+      highlightIso: mission.targetIso ?? null,
+      stage: mission.kind === "flag" || mission.kind === "capital" || mission.kind === "neighbors" || mission.kind === "shape" ? "flag" : "mission",
+      flyTo:
+        mission.kind === "flag" || mission.kind === "capital" || mission.kind === "neighbors" || mission.kind === "shape"
+          ? { lat: 18, lng: 20, dist: 6.6 }
+          : mission.lat != null
+            ? { lat: mission.lat, lng: mission.lng ?? 0, dist: 5.4 }
+            : { lat: 20, lng: 30, dist: 6.5 },
+    })
+  },
+
+  clearMission: () => set({ mission: null, missionEndsAt: null, highlightIso: null, lastFeedback: null, stage: "explore" }),
 
   award: (xp, coins) => {
-    let progress = {
-      ...get().progress,
-      xp: get().progress.xp + xp,
-      coins: get().progress.coins + coins,
-    }
+    let progress = { ...get().progress, xp: get().progress.xp + xp, coins: get().progress.coins + coins }
     if (progress.xp >= 500) progress = grant(progress, "xp-500")
-    if (progress.xp >= 1500) progress = grant(progress, "xp-1500")
     set({ progress })
     void persist(progress)
   },
 
-  collectStamp: (id) => {
-    const current = get().progress
-    if (current.stamps.includes(id)) return
-    let progress = { ...current, stamps: [...current.stamps, id], coins: current.coins + 8 }
-    if (progress.stamps.length >= 8) progress = grant(progress, "collector")
+  note: (text) => {
+    const journal = [{ at: Date.now(), text }, ...get().progress.journal].slice(0, 40)
+    const progress = { ...get().progress, journal }
     set({ progress })
     void persist(progress)
   },
 
-  visit: (countryId) => {
-    const current = get().progress
-    if (current.visited.includes(countryId)) return
-    const progress = { ...current, visited: [...current.visited, countryId] }
-    set({ progress })
-    void persist(progress)
-  },
-
-  unlock: (id) => {
-    const progress = grant(get().progress, id)
-    set({ progress })
-    void persist(progress)
-  },
-
-  addScore: (score) => {
-    const name = get().profile?.name ?? "Игрок"
-    const row: LeaderRow = { name, score, at: Date.now() }
-    const leaderboard = [...get().progress.leaderboard, row].sort((a, b) => b.score - a.score).slice(0, 12)
-    let progress = grant({ ...get().progress, leaderboard }, "challenge")
-    set({ progress })
-    void persist(progress)
-  },
-
-  markCampaign: (countryId, answers) => {
-    const current = get().progress
-    const campaignAnswers = { ...current.campaignAnswers, [countryId]: answers }
-    const done = new Set(current.campaignDone)
-    if (answers.length > 0) done.add(countryId)
-    let progress: Progress = {
-      ...current,
-      campaignAnswers,
-      campaignDone: [...done],
+  completeMission: (id) => {
+    const progress = {
+      ...get().progress,
+      missionsDone: get().progress.missionsDone.includes(id) ? get().progress.missionsDone : [...get().progress.missionsDone, id],
     }
-    if (progress.campaignDone.length >= 5) progress = grant(progress, "silk-road")
     set({ progress })
     void persist(progress)
   },
+
+  fly: (lat, lng, dist = 3.8) => set({ flyTo: { lat, lng, dist } }),
+
+  setFeedback: (ok, text) => set({ lastFeedback: { ok, text }, highlightIso: ok ? get().selectedIso : get().highlightIso }),
 
   setDifficulty: (d) => {
     const progress = { ...get().progress, difficulty: d }
@@ -256,5 +238,3 @@ export const useGame = create<GameState>((set, get) => ({
     await persist(progress)
   },
 }))
-
-export { ACHIEVEMENTS }

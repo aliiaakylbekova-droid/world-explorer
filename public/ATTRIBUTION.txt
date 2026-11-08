@@ -1,0 +1,11 @@
+GEO QUEST map & earth assets (offline copies)
+
+- NASA Visible Earth / Blue Marble and topography derivatives
+  Public domain (US government work). Local files: textures/earth-day.jpg, earth-bump.jpg, earth-water.png
+  (sourced via three-globe example images, themselves NASA-based).
+- Natural Earth 110m / 50m vector data
+  Public domain. https://www.naturalearthdata.com/
+  Local files: geo/ne_*.geojson
+- Flag SVG (4x3) from flag-icons
+  MIT License. https://github.com/lipis/flag-icons
+  Local files: flags/*.svg

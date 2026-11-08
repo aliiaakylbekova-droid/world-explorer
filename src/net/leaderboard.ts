@@ -5,7 +5,7 @@
  *   fetchBoard() -> select
  * Do not simulate online players.
  */
-import type { LeaderRow } from "../store/gameStore"
+export type LeaderRow = { name: string; score: number; at: number }
 
 export type RemoteLeaderboard = {
   enabled: false

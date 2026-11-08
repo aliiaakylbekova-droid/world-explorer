@@ -26,6 +26,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@types/geojson": "^7946.0.16",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
@@ -58,11 +59,15 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "${productName} Setup.${ext}"
@@ -81,7 +86,10 @@
       "uninstallDisplayName": "GEO QUEST",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "installerLanguages": ["ru_RU", "en_US"],
+      "installerLanguages": [
+        "ru_RU",
+        "en_US"
+      ],
       "artifactName": "${productName} Setup.${ext}"
     }
   }

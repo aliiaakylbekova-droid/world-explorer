@@ -1,8 +1,7 @@
 import { useState } from "react"
+import { GlobeMap } from "../game/GlobeMap"
 import { t } from "../i18n"
 import { useGame } from "../store/gameStore"
-import { SafeGlobe } from "../three/SafeGlobe"
-import { GoldButton, Panel } from "../ui/chrome"
 
 const AVATARS = [
   { id: "ocean", color: "#0A4D8C" },
@@ -18,22 +17,16 @@ export function RegisterScreen() {
   const [avatar, setAvatar] = useState("ocean")
 
   return (
-    <div className="stage">
-      <div className="stage-globe">
-        <SafeGlobe continent="asia" countryId={null} onPickCountry={() => undefined} />
+    <div className="hud register-hud">
+      <div className="hud-center">
+        <GlobeMap onPick={() => undefined} />
       </div>
-      <Panel className="register">
+      <aside className="panel register">
         <p className="kicker">{copy.register.kicker}</p>
         <h1>{copy.title}</h1>
         <p className="subtitle">{copy.subtitle}</p>
         <h2>{copy.register.heading}</h2>
-        <input
-          className="field"
-          value={name}
-          maxLength={40}
-          placeholder={copy.register.placeholder}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <input className="field" value={name} maxLength={40} placeholder={copy.register.placeholder} onChange={(e) => setName(e.target.value)} />
         <p className="muted">{copy.register.avatar}</p>
         <div className="avatars">
           {AVATARS.map((item) => (
@@ -47,11 +40,11 @@ export function RegisterScreen() {
             />
           ))}
         </div>
-        <GoldButton disabled={name.trim().length < 2} onClick={() => void register(name, avatar)}>
+        <button type="button" className="btn" disabled={name.trim().length < 2} onClick={() => void register(name, avatar)}>
           {copy.register.start}
-        </GoldButton>
+        </button>
         <p className="hint">{copy.register.hint}</p>
-      </Panel>
+      </aside>
     </div>
   )
 }
