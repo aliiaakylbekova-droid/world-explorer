@@ -10,7 +10,9 @@ import {
   TextureLoader,
   Vector3,
   type DirectionalLight,
+  type Group,
 } from "three"
+import { useGame } from "../store/gameStore"
 import type { CountryRecord, NamedLine } from "../geo/catalog"
 import { isoOf, type Place } from "../geo/catalog"
 import { getCatalog, pickCountry } from "../geo/catalog"
@@ -106,22 +108,46 @@ export function EarthScene({
   day.colorSpace = SRGBColorSpace
   const sun = useRef<DirectionalLight>(null)
   const { camera } = useThree()
+  const introPhase = useGame((s) => s.introPhase)
+  const finishIntro = useGame((s) => s.finishIntro)
+  const earth = useRef<Group>(null)
   const fly = useRef(0)
   const target = useRef(new Vector3(0, 0.4, 6.2))
   const look = useRef(new Vector3(0, 0, 0))
+  const far = useRef(new Vector3(0, 0.55, 11.2))
+  const near = useRef(new Vector3(0, 0.42, 6.35))
+  const introClock = useRef(0)
+  const introDone = useRef(false)
 
   useEffect(() => {
-    if (!flyTo) return
+    if (!flyTo || introPhase !== "ready") return
     target.current.copy(cameraFor(flyTo.lat, flyTo.lng, flyTo.dist))
     fly.current = 1
-  }, [flyTo])
+  }, [flyTo, introPhase])
 
   useFrame((_, dt) => {
+    const spin = introPhase === "ready" ? 0.01 : 0.09
+    if (earth.current) earth.current.rotation.y += dt * spin
     if (sun.current) sun.current.position.copy(camera.position)
-    if (fly.current > 0) {
-      fly.current = Math.max(0, fly.current - dt * 0.7)
-      camera.position.lerp(target.current, Math.min(1, dt * 1.8))
+
+    if (introPhase !== "ready") {
+      const goal = introPhase === "approach" ? near.current : far.current
+      camera.position.lerp(goal, 1 - Math.exp(-dt * (introPhase === "approach" ? 0.7 : 1.1)))
       camera.lookAt(look.current)
+      if (introPhase === "approach") {
+        introClock.current += dt
+        if (!introDone.current && (introClock.current > 3.05 || camera.position.distanceTo(goal) < 0.14)) {
+          introDone.current = true
+          finishIntro()
+        }
+      }
+      return
+    }
+
+    if (fly.current > 0) {
+      camera.position.lerp(target.current, 1 - Math.exp(-dt * 1.05))
+      camera.lookAt(look.current)
+      if (camera.position.distanceTo(target.current) < 0.045) fly.current = 0
     }
   })
 
@@ -147,11 +173,12 @@ export function EarthScene({
 
   return (
     <group>
-      <color attach="background" args={["#07101c"]} />
+      <color attach="background" args={["#050814"]} />
       <ambientLight intensity={0.62} />
       <hemisphereLight args={[new Color("#9ec9ff"), new Color("#1a120c"), 0.35]} />
       <directionalLight ref={sun} intensity={2.15} color="#fff4d6" castShadow position={[8, 3, 4]} />
-      <Stars radius={40} depth={20} count={1200} factor={2} fade speed={0.4} />
+      <Stars radius={48} depth={24} count={1600} factor={2.2} fade speed={0.25} />
+      <group ref={earth}>
       <mesh
         onClick={(e) => {
           e.stopPropagation()
@@ -201,14 +228,16 @@ export function EarthScene({
           <lineBasicMaterial color="#5ee7ff" transparent opacity={0.95} />
         </lineSegments>
       ) : null}
+      </group>
       <OrbitControls
         enablePan={false}
-        minDistance={2.35}
-        maxDistance={10}
-        zoomSpeed={0.7}
-        rotateSpeed={0.42}
+        enabled={introPhase === "ready"}
+        minDistance={2.45}
+        maxDistance={12}
+        zoomSpeed={0.45}
+        rotateSpeed={0.32}
         enableDamping
-        dampingFactor={0.06}
+        dampingFactor={0.085}
       />
     </group>
   )

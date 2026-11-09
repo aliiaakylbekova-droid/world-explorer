@@ -80,7 +80,7 @@ export function EarthBundle({
 export function GlobeMap({ onPick }: { onPick: (hit: { iso: string | null; lat: number; lng: number }) => void }) {
   return (
     <ErrorBoundary>
-      <WorldCanvas cameraZ={6.4}>
+      <WorldCanvas cameraZ={11.2}>
         <CameraRig mode="earth" />
         <EarthBundle onPick={onPick} />
       </WorldCanvas>

@@ -20,7 +20,7 @@ export default function App() {
       landmark: (id) => useGame.getState().openLandmark(id),
       pick: (iso, lat, lng) => useGame.getState().pick({ iso, lat, lng }),
       flag: () => {
-        const btn = Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.includes("Флаги"))
+        const btn = Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.includes("Флаги") || b.textContent?.includes("FLAGS"))
         btn?.click()
       },
     }

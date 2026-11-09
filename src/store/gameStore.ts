@@ -7,6 +7,7 @@ import type { Layers } from "../three/EarthScene"
 import type { Profile } from "../types/electron"
 
 export type Stage = "register" | "explore" | "discover" | "mission" | "flag" | "journal" | "settings"
+export type IntroPhase = "card" | "approach" | "ready"
 
 export type FlyTo = { lat: number; lng: number; dist: number } | null
 
@@ -50,8 +51,10 @@ type GameState = {
   mission: StoryMission | null
   missionEndsAt: number | null
   lastFeedback: { ok: boolean; text: string } | null
+  introPhase: IntroPhase
   hydrate: () => Promise<void>
   register: (name: string, avatar: string) => Promise<void>
+  finishIntro: () => void
   setStage: (stage: Stage) => void
   pick: (hit: { iso: string | null; lat: number; lng: number }) => void
   setLayers: (partial: Partial<Layers>) => void
@@ -93,6 +96,7 @@ export const useGame = create<GameState>((set, get) => ({
   mission: null,
   missionEndsAt: null,
   lastFeedback: null,
+  introPhase: "card",
 
   hydrate: async () => {
     try {
@@ -113,9 +117,10 @@ export const useGame = create<GameState>((set, get) => ({
         progress,
         ready: true,
         stage: profile ? "explore" : "register",
+        introPhase: profile ? "approach" : "card",
       })
     } catch {
-      set({ ready: true, stage: "register", progress: defaultProgress() })
+      set({ ready: true, stage: "register", progress: defaultProgress(), introPhase: "card" })
     }
   },
 
@@ -125,13 +130,23 @@ export const useGame = create<GameState>((set, get) => ({
     else localStorage.setItem("gq-profile", JSON.stringify(profile))
     const progress = grant(get().progress, "first-step")
     await persist(progress)
-    set({ profile, progress, stage: "explore" })
+    set({ profile, progress, stage: "explore", introPhase: "approach" })
+  },
+
+  finishIntro: () => {
+    if (get().introPhase === "ready") return
+    set({ introPhase: "ready" })
   },
 
   setStage: (stage) => {
     let progress = get().progress
     if (stage === "explore") progress = grant(progress, "globe-spin")
-    set({ stage, lastFeedback: null, flyTo: stage === "discover" ? get().flyTo : get().flyTo })
+    const home = stage === "explore" && get().stage !== "explore"
+    set({
+      stage,
+      lastFeedback: null,
+      flyTo: home ? { lat: 18, lng: 20, dist: 6.5 } : get().flyTo,
+    })
     void persist(progress)
     if (progress !== get().progress) set({ progress })
   },
@@ -144,7 +159,7 @@ export const useGame = create<GameState>((set, get) => ({
       selectedIso: hit.iso,
       lastHit: hit,
       progress,
-      flyTo: hit.iso ? { lat: hit.lat, lng: hit.lng, dist: 3.6 } : { lat: hit.lat, lng: hit.lng, dist: 4.2 },
+      flyTo: hit.iso ? { lat: hit.lat, lng: hit.lng, dist: 3.85 } : { lat: 18, lng: 20, dist: 6.5 },
     })
     void persist(progress)
   },
@@ -183,7 +198,15 @@ export const useGame = create<GameState>((set, get) => ({
     })
   },
 
-  clearMission: () => set({ mission: null, missionEndsAt: null, highlightIso: null, lastFeedback: null, stage: "explore" }),
+  clearMission: () =>
+    set({
+      mission: null,
+      missionEndsAt: null,
+      highlightIso: null,
+      lastFeedback: null,
+      stage: "explore",
+      flyTo: { lat: 18, lng: 20, dist: 6.5 },
+    }),
 
   award: (xp, coins) => {
     let progress = { ...get().progress, xp: get().progress.xp + xp, coins: get().progress.coins + coins }
@@ -208,7 +231,7 @@ export const useGame = create<GameState>((set, get) => ({
     void persist(progress)
   },
 
-  fly: (lat, lng, dist = 3.8) => set({ flyTo: { lat, lng, dist } }),
+  fly: (lat, lng, dist = 4.1) => set({ flyTo: { lat, lng, dist } }),
 
   setFeedback: (ok, text) => set({ lastFeedback: { ok, text }, highlightIso: ok ? get().selectedIso : get().highlightIso }),
 

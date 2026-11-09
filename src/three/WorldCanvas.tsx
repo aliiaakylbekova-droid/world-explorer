@@ -15,20 +15,20 @@ function bindGlLog(gl: WebGLRenderer) {
 
 export function WorldCanvas({
   children,
-  cameraZ = 6.2,
+  cameraZ = 11.2,
 }: {
   children: ReactNode
   cameraZ?: number
 }) {
-  const land = cameraZ > 8
+  const land = cameraZ > 14
   return (
     <Canvas
       className="world-canvas"
       camera={{
-        position: land ? [11, 7.5, cameraZ] : [0, 0.35, cameraZ],
-        fov: 42,
+        position: land ? [11, 7.5, cameraZ] : [0, 0.55, cameraZ],
+        fov: 40,
         near: 0.1,
-        far: 120,
+        far: 160,
       }}
       dpr={[1, 1.5]}
       gl={{
@@ -41,7 +41,7 @@ export function WorldCanvas({
       shadows={false}
       frameloop="always"
       onCreated={({ gl }) => {
-        gl.setClearColor("#8ec4e6")
+        gl.setClearColor("#050814")
         bindGlLog(gl)
         console.info("[geo-quest] WebGL", gl.getContext().getParameter(gl.getContext().VERSION))
       }}

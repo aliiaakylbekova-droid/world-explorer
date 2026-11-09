@@ -53,6 +53,8 @@ export function GameShell() {
   const completeMission = useGame((s) => s.completeMission)
   const fly = useGame((s) => s.fly)
   const lastHit = useGame((s) => s.lastHit)
+  const introPhase = useGame((s) => s.introPhase)
+  const finishIntro = useGame((s) => s.finishIntro)
   const [hintOn, setHintOn] = useState(false)
   const [point, setPoint] = useState<{ title: string; text: string } | null>(null)
   const [flagRound, setFlagRound] = useState<StoryMission | null>(null)
@@ -62,6 +64,12 @@ export function GameShell() {
   useEffect(() => {
     void loadCatalog()
   }, [])
+
+  useEffect(() => {
+    if (introPhase !== "approach") return
+    const id = window.setTimeout(() => finishIntro(), 3400)
+    return () => window.clearTimeout(id)
+  }, [introPhase, finishIntro])
 
   const country = selectedIso ? getCatalog()?.byIso.get(selectedIso) : undefined
   const landmark = LANDMARKS.find((l) => l.id === landmarkId) ?? LANDMARKS[0]
@@ -207,7 +215,7 @@ export function GameShell() {
             : mission?.story
 
   return (
-    <div className="gq-live hud" data-hud="explorer-v2">
+    <div className={`gq-live hud intro-${introPhase}`} data-hud="explorer-v2" data-intro={introPhase}>
       <header className="hud-top">
         <div className="brand">
           <strong>GEO QUEST</strong>
@@ -397,14 +405,14 @@ export function GameShell() {
             <circle cx="12" cy="12" r="8" />
             <path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16" />
           </svg>
-          <span>Исследуй</span>
+          <span>EXPLORE</span>
         </button>
         <button type="button" className={stage === "discover" ? "on" : ""} onClick={() => (landmarkId ? setStage("discover") : openLandmark("issyk"))}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 4v4M12 16v4M4 12h4M16 12h4" />
             <circle cx="12" cy="12" r="3" />
           </svg>
-          <span>Открой</span>
+          <span>DISCOVER</span>
         </button>
         <button
           type="button"
@@ -417,7 +425,7 @@ export function GameShell() {
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 4h10l-2 4 2 4H6v8" />
           </svg>
-          <span>Миссия</span>
+          <span>MISSIONS</span>
         </button>
         <button type="button" className={stage === "flag" ? "on" : ""} onClick={() => newFlagRound("flag")}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -462,7 +470,7 @@ export function GameShell() {
             <circle cx="12" cy="12" r="3" />
             <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
           </svg>
-          <span>Настройки</span>
+          <span>MY PROFILE</span>
         </button>
         {(stage === "mission" || stage === "flag") && mission ? (
           <button type="button" className="ghost" onClick={() => clearMission()}>
