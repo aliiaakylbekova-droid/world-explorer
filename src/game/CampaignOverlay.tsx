@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { t } from "../i18n"
 import { useGame } from "../store/gameStore"
 
 function AnimatedXp({ target }: { target: number }) {
@@ -31,14 +32,16 @@ export function CampaignOverlay() {
   const lastFeedback = useGame((s) => s.lastFeedback)
   const mission = useGame((s) => s.mission)
   const stage = useGame((s) => s.stage)
+  const ui = t().play
+  void useGame((s) => s.progress.locale)
 
   if (stage === "discover") return null
   if (stage === "flag" && lastFeedback) {
     if (lastFeedback.ok) {
       return (
         <div className="gq-result is-ok" data-result="success">
-          <p className="kicker">GREAT JOB</p>
-          <h2>YOU FOUND THE CORRECT LOCATION</h2>
+          <p className="kicker">{ui.greatJob}</p>
+          <h2>{ui.correctLocation}</h2>
           <p className="place">{lastCountryName || mission?.targetName}</p>
           <p>{mission?.recap}</p>
         </div>
@@ -46,8 +49,8 @@ export function CampaignOverlay() {
     }
     return (
       <div className="gq-result is-wrong" data-result="wrong">
-        <p className="kicker">TRY AGAIN</p>
-        <h2>Not this place</h2>
+        <p className="kicker">{ui.tryAgain}</p>
+        <h2>{ui.notThisPlace}</h2>
         <p>{lastFeedback.text}</p>
       </div>
     )
@@ -56,8 +59,8 @@ export function CampaignOverlay() {
     if (lastFeedback.ok) {
       return (
         <div className="gq-result is-ok" data-result="success">
-          <p className="kicker">GREAT JOB</p>
-          <h2>YOU FOUND THE CORRECT LOCATION</h2>
+          <p className="kicker">{ui.greatJob}</p>
+          <h2>{ui.correctLocation}</h2>
           <p className="place">{lastCountryName || mission?.targetName}</p>
           <p>{mission?.recap}</p>
         </div>
@@ -65,8 +68,8 @@ export function CampaignOverlay() {
     }
     return (
       <div className="gq-result is-wrong" data-result="wrong">
-        <p className="kicker">TRY AGAIN</p>
-        <h2>Not this place</h2>
+        <p className="kicker">{ui.tryAgain}</p>
+        <h2>{ui.notThisPlace}</h2>
         <p>{lastFeedback.text}</p>
       </div>
     )
@@ -77,10 +80,10 @@ export function CampaignOverlay() {
   if (phase === "wrong") {
     return (
       <div className="gq-result is-wrong" data-result="wrong">
-        <p className="kicker">TRY AGAIN</p>
-        <h2>Not this place</h2>
+        <p className="kicker">{ui.tryAgain}</p>
+        <h2>{ui.notThisPlace}</h2>
         <p>
-          {lastCountryName ? `${lastCountryName} is not the target.` : "That click is not the objective."} {lastFeedback?.text || campaign.hint}
+          {lastCountryName ? `${lastCountryName} ${ui.notTarget}` : ui.missClick} {lastFeedback?.text || campaign.hint}
         </p>
       </div>
     )
@@ -89,11 +92,11 @@ export function CampaignOverlay() {
   if (phase === "timeout") {
     return (
       <div className="gq-result is-timeout" data-result="timeout">
-        <p className="kicker">TIME'S UP</p>
+        <p className="kicker">{ui.timesUp}</p>
         <h2>{campaign.title}</h2>
         <p>{campaign.hint}</p>
         <button type="button" className="btn" onClick={() => retryLevel()}>
-          RETRY
+          {ui.retry}
         </button>
       </div>
     )
@@ -102,16 +105,16 @@ export function CampaignOverlay() {
   if (phase === "success") {
     return (
       <div className="gq-result is-ok" data-result="success">
-        <p className="kicker">GREAT JOB</p>
-        <h2>YOU FOUND THE CORRECT LOCATION</h2>
+        <p className="kicker">{ui.greatJob}</p>
+        <h2>{ui.correctLocation}</h2>
         <p className="place">{lastCountryName || campaign.title}</p>
         <p>{campaign.fact}</p>
         <p className="xp-line">
-          +{campaign.reward} XP · LEVEL {campaign.number}
+          +{campaign.reward} XP · {ui.level} {campaign.number}
         </p>
         <AnimatedXp target={progress.xp} />
         <button type="button" className="btn" onClick={() => continueCampaign()}>
-          CONTINUE
+          {ui.continue}
         </button>
       </div>
     )
@@ -120,10 +123,10 @@ export function CampaignOverlay() {
   if (phase === "levelComplete") {
     return (
       <div className="gq-result is-ok" data-result="level">
-        <p className="kicker">LEVEL COMPLETED</p>
+        <p className="kicker">{ui.levelDone}</p>
         <h2>{campaign.title}</h2>
         <button type="button" className="btn" onClick={() => continueCampaign()}>
-          CONTINUE
+          {ui.continue}
         </button>
       </div>
     )
@@ -132,9 +135,9 @@ export function CampaignOverlay() {
   if (phase === "campaignComplete") {
     return (
       <div className="gq-result is-ok" data-result="campaign">
-        <p className="kicker">CAMPAIGN COMPLETED</p>
-        <h2>GEO GAME</h2>
-        <p>You mapped Asia, Kyrgyzstan, France, Egypt, the Nile, Tian Shan, and Issyk-Kul.</p>
+        <p className="kicker">{ui.campaignDone}</p>
+        <h2>{ui.geoGame}</h2>
+        <p>{ui.campaignWrap}</p>
         <AnimatedXp target={progress.xp} />
         <button
           type="button"
@@ -144,7 +147,7 @@ export function CampaignOverlay() {
             useGame.getState().setStage("explore")
           }}
         >
-          EXPLORE THE WORLD
+          {ui.exploreWorld}
         </button>
       </div>
     )

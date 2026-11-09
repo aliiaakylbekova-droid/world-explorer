@@ -5,7 +5,7 @@ import { countryNameOf, evaluateLevel, evaluateMission } from "../geo/hitTest"
 import { LANDMARKS } from "../geo/catalog"
 import type { StoryMission } from "../game/storyMissions"
 import type { Locale } from "../i18n"
-import { setLocale } from "../i18n"
+import { setLocale, t } from "../i18n"
 import type { Layers } from "../three/EarthScene"
 import type { Profile } from "../types/electron"
 
@@ -240,7 +240,7 @@ export const useGame = create<GameState>((set, get) => ({
         progress,
         campaignPhase: useCampaign ? "timeout" : st.campaignPhase,
         hitTint: "orange",
-        lastFeedback: { ok: false, text: "TIME'S UP" },
+        lastFeedback: { ok: false, text: t().play.timesUp },
       })
       return
     }
@@ -273,7 +273,7 @@ export const useGame = create<GameState>((set, get) => ({
         campaignPhase: useCampaign ? "correct" : st.campaignPhase,
         hitTint: "gold",
         spinBoost: 0,
-        lastFeedback: { ok: true, text: "YOU FOUND THE CORRECT LOCATION" },
+        lastFeedback: { ok: true, text: t().play.correctLocation },
       })
       window.setTimeout(() => {
         audio.play("success")
@@ -285,7 +285,7 @@ export const useGame = create<GameState>((set, get) => ({
           campaignPhase: useCampaign ? "success" : now.campaignPhase,
           hitTint: "cyan",
           progress: next,
-          lastFeedback: { ok: true, text: "GREAT JOB" },
+          lastFeedback: { ok: true, text: t().play.greatJob },
         })
         void persist(next)
         if (useCampaign) {
@@ -297,7 +297,7 @@ export const useGame = create<GameState>((set, get) => ({
       }, 900)
     } else {
       audio.play("fail")
-      const hint = useCampaign ? st.campaign!.hint : st.mission?.hint || "Try another place on the globe."
+      const hint = useCampaign ? st.campaign!.hint : st.mission?.hint || t().play.tryElsewhere
       set({
         selectedIso: hit.iso,
         lastHit: hit,
@@ -503,7 +503,7 @@ export const useGame = create<GameState>((set, get) => ({
         progress,
         campaignPhase: "campaignComplete",
         hitTint: "gold",
-        lastFeedback: { ok: true, text: "CAMPAIGN COMPLETED" },
+        lastFeedback: { ok: true, text: t().play.campaignDone },
         advancing: false,
       })
       void persist(progress)
@@ -517,7 +517,7 @@ export const useGame = create<GameState>((set, get) => ({
       progress,
       campaignPhase: "transition",
       hitTint: "cyan",
-      lastFeedback: { ok: true, text: "LEVEL COMPLETED" },
+      lastFeedback: { ok: true, text: t().play.levelDone },
       flyTo: level.nextFly ?? next.fly,
     })
     void persist(progress)
@@ -541,7 +541,7 @@ export const useGame = create<GameState>((set, get) => ({
     if (get().campaignPhase !== "play") return
     if (!get().campaign) return
     audio.play("fail")
-    set({ campaignPhase: "timeout", hitTint: "orange", lastFeedback: { ok: false, text: "TIME'S UP" } })
+    set({ campaignPhase: "timeout", hitTint: "orange", lastFeedback: { ok: false, text: t().play.timesUp } })
   },
 
   setLocalePref: (locale) => {

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { audio } from "../audio/AudioManager"
 import { GlobeMap } from "../game/GlobeMap"
+import { t } from "../i18n"
 import { useGame } from "../store/gameStore"
 
 export function RegisterScreen() {
@@ -31,17 +32,17 @@ export function RegisterScreen() {
           start()
         }}
       >
-        <h1>GEO GAME</h1>
+        <h1>{t().play.geoGame}</h1>
         <input
           className="intro-nick"
           value={name}
           maxLength={40}
-          placeholder="Nickname"
+          placeholder={t().play.nickname}
           autoComplete="nickname"
           onChange={(e) => setName(e.target.value)}
         />
         <button type="submit" className="intro-start" disabled={!canStart}>
-          START
+          {t().play.start}
         </button>
       </form>
     </div>

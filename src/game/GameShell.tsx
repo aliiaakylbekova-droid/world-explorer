@@ -5,6 +5,7 @@ import { GEO_CAMPAIGN } from "../data/campaign"
 import { LANDMARKS, NEIGHBORS, getCatalog, loadCatalog } from "../geo/catalog"
 import { formatClock } from "./logic"
 import { CampaignOverlay } from "./CampaignOverlay"
+import { t } from "../i18n"
 import { FLAG_MODES, STORY_MISSIONS, type StoryMission } from "./storyMissions"
 import { StageView } from "../three/StageView"
 import { useGame } from "../store/gameStore"
@@ -185,12 +186,15 @@ export function GameShell() {
   }
 
   const discover = stage === "discover"
+  const ui = t().play
+  const dict = t()
+  void progress.locale
   const missionIndex = campaign?.number ?? (mission ? Math.max(1, STORY_MISSIONS.findIndex((m) => m.id === mission.id) + 1) : stage === "explore" ? 0 : 1)
   const level = campaign?.number ?? Math.floor(progress.xp / 120) + 1
   const xpInto = progress.xp % 120
   const missionProgress = Math.min(1, (progress.campaignDone.length || progress.missionsDone.length) / GEO_CAMPAIGN.length)
 
-  const leftTitle = campaign ? campaign.title : stage === "explore" ? "Исследуй" : stage === "discover" ? "Открой место" : stage === "journal" ? "Журнал" : stage === "settings" ? "Настройки" : mission?.title ?? "Миссия"
+  const leftTitle = campaign ? campaign.title : stage === "explore" ? ui.explore : stage === "discover" ? ui.discover : stage === "journal" ? ui.journal : stage === "settings" ? dict.settings.title : mission?.title ?? ui.missions
   const leftBrief = campaign
     ? campaign.instruction
     : stage === "explore"
@@ -200,7 +204,7 @@ export function GameShell() {
         : stage === "journal"
           ? "Записи экспедиции."
           : stage === "settings"
-            ? "Music / SFX. Сложность меняет таймер."
+            ? ui.settingsBrief
             : mission?.story
 
   return (
@@ -211,7 +215,9 @@ export function GameShell() {
           <span className="pilot">{profile?.name}</span>
         </div>
         <div className="hud-xp">
-          <span>LEVEL {level}</span>
+          <span>
+            {ui.level} {level}
+          </span>
           <span className="sep" />
           <span>{progress.xp} XP</span>
           <span className="sep" />
@@ -223,13 +229,15 @@ export function GameShell() {
 
       <aside className="hud-left">
         <article className="mission-card" key={stage + (mission?.id ?? "")}>
-            <p className="mission-no">LEVEL {String(missionIndex).padStart(2, "0")}</p>
+            <p className="mission-no">
+              {ui.level} {String(missionIndex).padStart(2, "0")}
+            </p>
             <h3>{leftTitle}</h3>
             <p className="brief">{leftBrief}</p>
             {campaign ? (
               <>
                 <p className="goal">
-                  <span>Task</span>
+                  <span>{ui.task}</span>
                   {campaign.goal}
                 </p>
                 <p className="xp-reward">+{campaign.reward} XP</p>
@@ -238,7 +246,7 @@ export function GameShell() {
             {(stage === "mission" || stage === "flag") && mission && !campaign ? (
             <>
               <p className="goal">
-                <span>Цель игрока</span>
+                <span>{ui.goal}</span>
                 {mission.goal}
               </p>
               <p className="xp-reward">+{mission.xp} XP</p>
@@ -246,7 +254,7 @@ export function GameShell() {
           ) : null}
           {stage === "explore" ? (
             <p className="goal">
-              <span>Цель игрока</span>
+              <span>{ui.goal}</span>
               Изучи территорию. Имена стран — только при наведении или выборе.
             </p>
           ) : null}
@@ -259,7 +267,7 @@ export function GameShell() {
                 </div>
               ) : (
                 <p className="goal">
-                  <span>Цель игрока</span>
+                  <span>{ui.goal}</span>
                   Кликай золотые точки на сцене.
                 </p>
               )}
@@ -272,7 +280,7 @@ export function GameShell() {
             <>
               {hintOn ? <p className="hint-box">{mission.hint}</p> : null}
               <button type="button" className="btn ghost" onClick={() => setHintOn(true)}>
-                Подсказка
+                {ui.hint}
               </button>
               {lastFeedback ? <p className={lastFeedback.ok ? "ok" : "bad"}>{lastFeedback.text}</p> : null}
               {lastFeedback?.ok ? <p className="recap">{mission.recap}</p> : null}
@@ -286,26 +294,26 @@ export function GameShell() {
           {stage === "settings" ? (
             <div className="audio-set">
               <label className="audio-row">
-                <span>Music</span>
+                <span>{ui.music}</span>
                 <input type="checkbox" checked={progress.musicOn} onChange={(e) => useGame.getState().setMusic(e.target.checked)} />
               </label>
               <input type="range" min={0} max={1} step={0.05} value={progress.musicVol} onChange={(e) => useGame.getState().setMusicVol(Number(e.target.value))} />
               <label className="audio-row">
-                <span>SFX</span>
+                <span>{ui.sfx}</span>
                 <input type="checkbox" checked={progress.sfxOn} onChange={(e) => useGame.getState().setSfx(e.target.checked)} />
               </label>
               <input type="range" min={0} max={1} step={0.05} value={progress.sfxVol} onChange={(e) => useGame.getState().setSfxVol(Number(e.target.value))} />
               <div className="diff-row">
                 {(["easy", "medium", "hard"] as const).map((d) => (
                   <button key={d} type="button" className={progress.difficulty === d ? "chip on" : "chip"} onClick={() => useGame.getState().setDifficulty(d)}>
-                    {d}
+                    {dict.settings[d]}
                   </button>
                 ))}
               </div>
             </div>
           ) : null}
           <div className="mission-progress">
-            <span>Прогресс экспедиции</span>
+            <span>{ui.progress}</span>
             <div className="bar">
               <i style={{ width: `${Math.round(missionProgress * 100)}%` }} />
             </div>
@@ -347,11 +355,11 @@ export function GameShell() {
             {formatClock(left)}
           </div>
         ) : (
-          <div className="timer-idle">{campaign ? campaignPhase.toUpperCase() : "EXPLORE"}</div>
+          <div className="timer-idle">{campaign ? ui.missions : ui.explore}</div>
         )}
         <div className="stat-stack">
           <div className="stat">
-            <span>Уровень</span>
+            <span>{ui.level}</span>
             <b>{level}</b>
           </div>
           <div className="xp-track">
@@ -363,13 +371,13 @@ export function GameShell() {
             </div>
           </div>
           <div className="stat">
-            <span>Счёт</span>
+            <span>{ui.score}</span>
             <b>◆ {progress.coins}</b>
           </div>
         </div>
         {stage === "flag" && flagRound?.targetIso ? (
           <div className="flag-hunt">
-            <p>Кликни эту страну на глобусе</p>
+            <p>{ui.clickFlag}</p>
             <FlagImg iso={flagRound.targetIso} />
             {flagRound.kind !== "flag" ? <p className="tiny">{flagRound.story}</p> : null}
           </div>
@@ -378,11 +386,17 @@ export function GameShell() {
           <div className="country-card" key={country.iso}>
             <img className="flag-sm" src={`${import.meta.env.BASE_URL}flags/${country.iso.toLowerCase()}.svg`} alt="" />
             <h3>{country.name}</h3>
-            <p>Столица: {country.capital || "—"}</p>
+            <p>
+              {ui.capital}: {country.capital || "—"}
+            </p>
             <p>
               {country.continent} · {country.lat.toFixed(1)}°, {country.lng.toFixed(1)}°
             </p>
-            {NEIGHBORS[country.iso] ? <p>Соседи: {NEIGHBORS[country.iso].map(countryName).join(", ")}</p> : null}
+            {NEIGHBORS[country.iso] ? (
+              <p>
+                {ui.neighbors}: {NEIGHBORS[country.iso].map(countryName).join(", ")}
+              </p>
+            ) : null}
             {localMarks.map((lm) => (
               <button key={lm.id} type="button" className="chip" onClick={() => openLandmark(lm.id)}>
                 {lm.name}
@@ -390,10 +404,10 @@ export function GameShell() {
             ))}
           </div>
         ) : null}
-        {stage !== "flag" && !country ? <p className="tiny">Наведи или выбери страну — имя появится на глобусе.</p> : null}
+        {stage !== "flag" && !country ? <p className="tiny">{ui.hoverHint}</p> : null}
         {lastHit ? (
           <p className="tiny">
-            Курсор: {lastHit.lat.toFixed(1)}°, {lastHit.lng.toFixed(1)}°
+            {ui.cursor}: {lastHit.lat.toFixed(1)}°, {lastHit.lng.toFixed(1)}°
           </p>
         ) : null}
         <div className="layers">
@@ -426,14 +440,14 @@ export function GameShell() {
             <circle cx="12" cy="12" r="8" />
             <path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16" />
           </svg>
-          <span>EXPLORE</span>
+          <span>{ui.explore}</span>
         </button>
         <button type="button" className={stage === "discover" ? "on" : ""} onClick={() => (landmarkId ? setStage("discover") : openLandmark("issyk"))}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 4v4M12 16v4M4 12h4M16 12h4" />
             <circle cx="12" cy="12" r="3" />
           </svg>
-          <span>DISCOVER</span>
+          <span>{ui.discover}</span>
         </button>
         <button
           type="button"
@@ -446,13 +460,13 @@ export function GameShell() {
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 4h10l-2 4 2 4H6v8" />
           </svg>
-          <span>MISSIONS</span>
+          <span>{ui.missions}</span>
         </button>
         <button type="button" className={stage === "flag" ? "on" : ""} onClick={() => newFlagRound("flag")}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 4v16M6 4h10l-2 4 2 4H6" />
           </svg>
-          <span>Флаги</span>
+          <span>{ui.flags}</span>
         </button>
         <select
           className="mission-select"
@@ -466,7 +480,7 @@ export function GameShell() {
           }}
         >
           <option value="" disabled>
-            Задание…
+            {ui.assignment}
           </option>
           {STORY_MISSIONS.map((m) => (
             <option key={m.id} value={m.id}>
@@ -484,18 +498,18 @@ export function GameShell() {
             <rect x="6" y="4" width="12" height="16" rx="1" />
             <path d="M9 8h6M9 12h6M9 16h4" />
           </svg>
-          <span>Журнал</span>
+          <span>{ui.journal}</span>
         </button>
         <button type="button" className={stage === "settings" ? "on" : ""} onClick={() => setStage("settings")}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="3" />
             <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
           </svg>
-          <span>MY PROFILE</span>
+          <span>{ui.profile}</span>
         </button>
         {(stage === "mission" || stage === "flag") && mission ? (
           <button type="button" className="ghost" onClick={() => clearMission()}>
-            <span>Сдать карту</span>
+            <span>{ui.surrender}</span>
           </button>
         ) : null}
       </nav>
