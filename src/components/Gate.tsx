@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from "react"
-import { DEFAULT_TEACHER_CODE, DEFAULT_TEACHER_PIN, teacherLoginMatches } from "../session/credentials.ts"
+import {
+  DEFAULT_TEACHER_CODE,
+  DEFAULT_TEACHER_PIN,
+  loadTeacherAuth,
+  teacherLoginMatches,
+} from "../session/credentials.ts"
 
 type GateView = "choose" | "student" | "teacher"
 
@@ -53,7 +58,18 @@ export function Gate({
               <button type="button" className="advance" onClick={() => setView("student")} data-testid="role-student">
                 Ученик
               </button>
-              <button type="button" className="advance ghost" onClick={() => setView("teacher")} data-testid="role-teacher">
+              <button
+                type="button"
+                className="advance ghost"
+                onClick={() => {
+                  const auth = loadTeacherAuth()
+                  setCode(auth.code)
+                  setPin(auth.pin)
+                  setError("")
+                  setView("teacher")
+                }}
+                data-testid="role-teacher"
+              >
                 Учитель
               </button>
             </div>
@@ -112,7 +128,6 @@ export function Gate({
                 autoFocus
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
-                placeholder={DEFAULT_TEACHER_CODE}
                 autoComplete="username"
                 data-testid="teacher-code"
               />
@@ -122,7 +137,6 @@ export function Gate({
               <input
                 value={pin}
                 onChange={(event) => setPin(event.target.value)}
-                placeholder={DEFAULT_TEACHER_PIN}
                 type="password"
                 autoComplete="current-password"
                 data-testid="teacher-pin"
