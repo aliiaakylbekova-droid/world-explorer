@@ -1,21 +1,37 @@
 import { QUESTIONS } from "../data/questions.ts"
 import { formatClock, resultCopy, type AnswerRecord, type Tally } from "../game/logic.ts"
 
-export function StartCard({ onStart }: { onStart: () => void }) {
+export function StartCard({
+  onStart,
+  studentName,
+  className,
+  pastAttempts,
+}: {
+  onStart: () => void
+  studentName: string
+  className: string
+  pastAttempts: readonly { score: number; percent: number; finishedAt: number }[]
+}) {
   return (
     <div className="overlay-anchor">
-      <section className="card start-card">
-        <p className="eyebrow">География · 7 класс</p>
+      <section className="card start-card" data-testid="student-cabinet">
+        <p className="eyebrow">Кабинет ученика{className ? ` · ${className}` : ""}</p>
         <h1>WORLD EXPLORER</h1>
         <p className="lede">
-          Пятнадцать вопросов и двадцать минут. Карта остаётся на экране: её можно двигать и
-          приближать, пока ищешь ответ.
+          {studentName}, пятнадцать вопросов и двадцать минут. Карта остаётся на экране: её можно
+          двигать и приближать, пока ищешь ответ. Результат сохранится для учителя на этом устройстве.
         </p>
         <ul className="rules">
           <li>Верный ответ — 100 очков</li>
           <li>Ошибка или пропуск — 0</li>
           <li>Максимум — 1500</li>
         </ul>
+        {pastAttempts.length > 0 ? (
+          <p className="past-line">
+            Последняя попытка: {pastAttempts[0]?.score} из 1500 ({pastAttempts[0]?.percent}%).
+            Новая игра запишется отдельно.
+          </p>
+        ) : null}
         <button type="button" className="advance" onClick={onStart} data-testid="start">
           Начать
         </button>
@@ -68,7 +84,7 @@ export function ResultsCard({
             <dd>{stats.percent}%</dd>
           </div>
         </dl>
-        <p className="lede">{message.text}</p>
+        <p className="lede">{message.text} Результат записан в кабинет учителя на этом устройстве.</p>
         <div className="card-actions">
           <button type="button" className="advance" onClick={onReplay} data-testid="replay">
             Пройти ещё раз
@@ -85,9 +101,13 @@ export function ResultsCard({
 export function ReviewCard({
   records,
   onClose,
+  eyebrow = "Разбор",
+  title = "Ответы",
 }: {
   records: readonly AnswerRecord[]
   onClose: () => void
+  eyebrow?: string
+  title?: string
 }) {
   const byId = new Map(records.map((record) => [record.questionId, record]))
   return (
@@ -95,8 +115,8 @@ export function ReviewCard({
       <section className="card review-card" data-testid="review-list">
         <div className="review-head">
           <div>
-            <p className="eyebrow">Разбор</p>
-            <h2>Ответы</h2>
+            <p className="eyebrow">{eyebrow}</p>
+            <h2>{title}</h2>
           </div>
           <button type="button" className="advance ghost" onClick={onClose} data-testid="close-review">
             Закрыть

@@ -10,7 +10,7 @@ import {
 
 const QUESTION_IDS = QUESTIONS.map((question) => question.id)
 
-export function useQuiz() {
+export function useQuiz(onFinished?: (payload: { records: AnswerRecord[]; elapsedMs: number }) => void) {
   const [phase, setPhase] = useState<Phase>("ready")
   const [index, setIndex] = useState(0)
   const [records, setRecords] = useState<AnswerRecord[]>([])
@@ -23,18 +23,22 @@ export function useQuiz() {
   const recordsRef = useRef<AnswerRecord[]>([])
   const finishedRef = useRef(false)
   const lockedRef = useRef(false)
+  const onFinishedRef = useRef(onFinished)
+  onFinishedRef.current = onFinished
 
   const endGame = useCallback((reason: "done" | "time") => {
     if (finishedRef.current) return
     finishedRef.current = true
     const started = startedAtRef.current
     const elapsed = started == null ? 0 : Math.min(QUIZ_MS, Math.max(0, Date.now() - started))
-    setElapsedMs(reason === "time" ? QUIZ_MS : elapsed)
+    const elapsedMs = reason === "time" ? QUIZ_MS : elapsed
+    setElapsedMs(elapsedMs)
     setRemainingMs(reason === "time" ? 0 : Math.max(0, (deadlineRef.current ?? Date.now()) - Date.now()))
     const closed = withSkips(recordsRef.current, QUESTION_IDS)
     recordsRef.current = closed
     setRecords(closed)
     setPhase("results")
+    onFinishedRef.current?.({ records: closed, elapsedMs })
   }, [])
 
   useEffect(() => {
