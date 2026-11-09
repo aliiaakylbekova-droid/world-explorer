@@ -1,63 +1,44 @@
-import { QUESTIONS, type Camera } from "./data/questions.ts"
-import { QuestionSheet } from "./components/QuestionSheet.tsx"
-import { ResultsCard, ReviewCard, StartCard } from "./components/Overlays.tsx"
-import { TopBar } from "./components/TopBar.tsx"
-import { WorldMap } from "./components/WorldMap.tsx"
-import type { Outcome } from "./game/logic.ts"
-import { useQuiz } from "./game/useQuiz.ts"
-
-const WORLD: Camera = { center: [18, 12], zoom: 2 }
+import { useEffect } from "react"
+import { GameShell } from "./game/GameShell"
+import { RegisterScreen } from "./screens/RegisterScreen"
+import { useGame, type Stage } from "./store/gameStore"
 
 export default function App() {
-  const quiz = useQuiz()
-  const question = QUESTIONS[quiz.index] ?? QUESTIONS[0]
+  const hydrate = useGame((s) => s.hydrate)
+  const ready = useGame((s) => s.ready)
+  const stage = useGame((s) => s.stage)
+  const locale = useGame((s) => s.progress.locale)
 
-  const playing = quiz.phase === "play"
-  const showReveal = playing && quiz.picked !== null
-  const camera = !playing ? WORLD : showReveal ? question.reveal.camera : question.camera
-  const country = playing ? (question.focusCountry ?? null) : null
-  const reveal = showReveal ? question.reveal : null
+  useEffect(() => {
+    void hydrate()
+  }, [hydrate])
 
-  const outcomes = QUESTIONS.map((item, index) => {
-    const record = quiz.records.find((entry) => entry.questionId === item.id)
-    if (record) return record.outcome
-    if (playing && index === quiz.index) return "current" as const
-    return "upcoming" as const
-  })
+  useEffect(() => {
+    window.geoQuestDebug = {
+      fly: (lat, lng, dist) => useGame.getState().fly(lat, lng, dist),
+      stage: (s) => useGame.getState().setStage(s as Stage),
+      landmark: (id) => useGame.getState().openLandmark(id),
+      pick: (iso, lat, lng) => useGame.getState().pick({ iso, lat, lng }),
+      continue: () => useGame.getState().continueCampaign(),
+      retry: () => useGame.getState().retryLevel(),
+      campaign: (index) => useGame.getState().startCampaign(index),
+      flag: () => {
+        const btn = Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.includes("Флаги") || b.textContent?.includes("FLAGS"))
+        btn?.click()
+      },
+    }
+  }, [])
 
-  return (
-    <div className="game">
-      <WorldMap camera={camera} country={country} reveal={reveal} />
-      <TopBar
-        phase={quiz.phase}
-        questionNumber={quiz.index + 1}
-        remainingMs={quiz.remainingMs}
-        elapsedMs={quiz.elapsedMs}
-        score={quiz.stats.score}
-        outcomes={outcomes as (Outcome | "current" | "upcoming")[]}
-      />
-      {quiz.phase === "ready" ? <StartCard onStart={quiz.start} /> : null}
-      {playing ? (
-        <QuestionSheet
-          question={question}
-          number={quiz.index + 1}
-          picked={quiz.picked}
-          onChoose={quiz.choose}
-          onSkip={quiz.skip}
-          onNext={quiz.next}
-        />
-      ) : null}
-      {quiz.phase === "results" ? (
-        <ResultsCard
-          stats={quiz.stats}
-          elapsedMs={quiz.elapsedMs}
-          onReplay={quiz.start}
-          onReview={quiz.review}
-        />
-      ) : null}
-      {quiz.phase === "review" ? (
-        <ReviewCard records={quiz.records} onClose={quiz.closeReview} />
-      ) : null}
-    </div>
-  )
+  void locale
+
+  if (!ready) {
+    return (
+      <div className="boot">
+        <p>GEO QUEST</p>
+      </div>
+    )
+  }
+
+  if (stage === "register") return <RegisterScreen />
+  return <GameShell />
 }

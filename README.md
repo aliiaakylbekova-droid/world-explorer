@@ -1,29 +1,73 @@
-# WORLD EXPLORER
+# GEO QUEST
 
-Fullscreen geography quiz for grade 7. The world map fills the screen for the whole game. Fifteen questions, twenty minutes, score out of 1500. The interface is in Russian.
+**Explore the World. Discover the Unknown.**
 
-## Run locally
+Офлайн-игра для Windows: Electron + React + TypeScript + Three.js. После регистрации сразу **Исследуй** (нет главного меню из карточек). Интерфейс на русском.
+
+## Запуск
 
 ```bash
 npm install
-npm run dev
+npm run electron:dev
 ```
 
-Open [http://127.0.0.1:47231](http://127.0.0.1:47231). The dev server listens on `0.0.0.0:47231`.
+Живой URL (Vite HMR, исходники, не `dist/`): **http://127.0.0.1:47231/**
 
-## What is on screen
+`vite preview` смотрит уже собранный `dist/` на порту **4173**, не на 47231 — иначе Try Live показывал бы старый билд.
 
-- Esri World Street Map (no API key), shifted with a light parchment filter so oceans read as parchment, land as beige, and borders as brown. CARTO’s free tiles watermark without a key, and the public OpenStreetMap tile server blocks this app. If the street tiles fail, the map falls back to Esri’s World Physical Map with the same treatment.
-- A compact top bar: title, question number, countdown, score, and progress.
-- A bottom panel with the question and four answers.
-- After the quiz, the result and a review of every answer stay over the map.
+Отладка рендерера: `npm run dev` — это не продукт для игрока.
 
-Progress is stored only in the browser. Refreshing the page starts over.
+## Сборка Windows
 
-## Production build
+```bash
+npm run dist:win
+```
+
+На Linux без wine32 NSIS-установщик не дописывается. Реальный артефакт — zip/`win-unpacked/GEO QUEST.exe`. На Windows `npm run dist:win` даёт Setup.exe.
+
+## Облако (Supabase, опционально)
+
+Локальные сохранения (Electron JSON IPC или `localStorage`) работают **без ключей**. Если ключи заданы, клиент дополнительно пишет те же поля в облако.
+
+1. Скопируйте `.env.example` → `.env.local` (Vite) и заполните:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY` (только anon / public; **никогда** `service_role` в клиенте)
+2. В проекте Supabase выполните SQL из `supabase/migrations/20261109_geo_quest.sql`.
+3. Auth → Providers: включите **Anonymous** (регистрация в игре — никнейм, без почты).
+4. Таблицы совпадают с локальной архитектурой: `profiles`, `progress`, `leaderboard` (поля как `Profile` / `Progress` / `LeaderRow`). RLS: свои строки; таблица очков читается всеми.
+
+Ключи не коммитьте. Не вставляйте их в чат.
+
+## Vercel (подготовка, не автодеплой из этого репозитория)
+
+Репозиторий GitHub: `aliiaakylbekova-droid/world-explorer`. Файлы: `vercel.json` (Vite, `dist`, SPA rewrite).
+
+Остаётся в **дашборде Vercel** (этот репозиторий не включает прод-деплой):
+
+1. Import Project → тот GitHub-репозиторий.
+2. Framework Preset: Vite. Build: `npm run build`. Output: `dist`.
+3. Environment Variables (Production / Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+4. Production Branch: `main` и включить Auto-deploy on push.
+5. После первого деплоя проверить SPA-роутинг (`/` и прямой заход на путь).
+
+Пока импорт в дашборде не сделан, продакшен **не считается живым**.
+
+Локальная проверка прод-сборки:
 
 ```bash
 npm run build
+npx vite preview --host 127.0.0.1 --port 4173
 ```
 
-Vite writes the site to `dist`. On Vercel, set the framework to Vite, leave the root directory as the repository root, build command `npm run build`, and output directory `dist`.
+## Игровой цикл
+
+1. **Исследуй** — реалистичный глобус (NASA Blue Marble + bump), GeoJSON Natural Earth (границы, реки, озёра, города, моря, горы), слои, LOD подписей.
+2. **Открой** — сцена места (Тянь-Шань/Иссык-Куль, Эйфель, Гиза) с точками сведений.
+3. **Миссия** — только после знакомства с картой: найди реку, гору, координаты, город, материк. Кликни по карте. Неверно — географическая подсказка и повтор, пока есть время.
+4. **Флаги** — большая картинка флага + глобус, клик по стране. Также: столица, координаты, соседи, контур.
+
+HUD: слева задача, в центре 3D, справа страна/таймер/слои, снизу навигация.
+
+Сохранение профиля через безопасный IPC (десктоп) или `localStorage` (браузер). Онлайн — опциональный Supabase в `src/net/`.
+
+Карты и текстуры лежат в `public/` (см. `public/ATTRIBUTION.txt`).
