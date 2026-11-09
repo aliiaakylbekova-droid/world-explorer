@@ -537,6 +537,61 @@ h1 { font-family: Cinzel, serif; margin: 0 0 8px; }
 .intro-ready .hud-bottom button:nth-child(2) { animation: hudIn 0.5s 0.46s both; }
 .intro-ready .hud-bottom button:nth-child(7) { animation: hudIn 0.5s 0.62s both; }
 
+.gq-result {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  width: min(380px, 56vw);
+  pointer-events: auto;
+  padding: 18px 20px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(94, 231, 255, 0.28);
+  background: rgba(8, 12, 20, 0.78);
+  backdrop-filter: blur(18px) saturate(1.15);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  animation: rise 0.35s ease;
+  text-align: center;
+}
+.gq-result h2 {
+  font-family: Cinzel, serif;
+  letter-spacing: 0.12em;
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.gq-result p { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.gq-result .place { color: var(--gold); font-weight: 700; font-size: 15px; }
+.gq-result .xp-line { color: var(--cyan); font-weight: 700; }
+.gq-result .xp-pop {
+  display: block;
+  font-size: 22px;
+  color: var(--gold);
+  margin: 4px 0 10px;
+  animation: xpPop 0.7s ease;
+}
+@keyframes xpPop {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.gq-result.is-ok { border-color: rgba(232, 197, 71, 0.45); }
+.gq-result.is-wrong {
+  border-color: rgba(255, 106, 61, 0.5);
+  animation: shake 0.35s ease;
+}
+.gq-result.is-timeout { border-color: rgba(255, 154, 74, 0.5); }
+@keyframes shake {
+  0%, 100% { transform: translateX(-50%); }
+  25% { transform: translateX(calc(-50% - 6px)); }
+  75% { transform: translateX(calc(-50% + 6px)); }
+}
+.gq-select-chip.tint-gold { color: var(--gold); border-color: rgba(232, 197, 71, 0.55); }
+.gq-select-chip.tint-cyan { color: var(--cyan); }
+.gq-select-chip.tint-red, .gq-select-chip.tint-orange { color: #ffb3a0; border-color: rgba(255, 106, 61, 0.45); }
+.audio-set { display: flex; flex-direction: column; gap: 8px; }
+.audio-row { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.audio-set input[type="range"] { width: 100%; accent-color: var(--cyan); }
+
 @media (max-width: 980px) {
   .hud-left, .hud-right {
     top: auto;

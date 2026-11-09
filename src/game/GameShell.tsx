@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
 import "../index.css"
+import { audio } from "../audio/AudioManager"
+import { GEO_CAMPAIGN } from "../data/campaign"
 import { LANDMARKS, NEIGHBORS, getCatalog, loadCatalog } from "../geo/catalog"
 import { formatClock } from "./logic"
+import { CampaignOverlay } from "./CampaignOverlay"
 import { FLAG_MODES, STORY_MISSIONS, type StoryMission } from "./storyMissions"
 import { StageView } from "../three/StageView"
 import { useGame } from "../store/gameStore"
@@ -55,6 +58,12 @@ export function GameShell() {
   const lastHit = useGame((s) => s.lastHit)
   const introPhase = useGame((s) => s.introPhase)
   const finishIntro = useGame((s) => s.finishIntro)
+  const campaign = useGame((s) => s.campaign)
+  const campaignPhase = useGame((s) => s.campaignPhase)
+  const startCampaign = useGame((s) => s.startCampaign)
+  const tickTimeout = useGame((s) => s.tickTimeout)
+  const lastCountryName = useGame((s) => s.lastCountryName)
+  const hitTint = useGame((s) => s.hitTint)
   const [hintOn, setHintOn] = useState(false)
   const [point, setPoint] = useState<{ title: string; text: string } | null>(null)
   const [flagRound, setFlagRound] = useState<StoryMission | null>(null)
@@ -71,12 +80,24 @@ export function GameShell() {
     return () => window.clearTimeout(id)
   }, [introPhase, finishIntro])
 
+  useEffect(() => {
+    if (introPhase !== "ready") return
+    audio.unlock()
+    audio.play("ambient")
+    if (!campaign && progress.campaignIndex < GEO_CAMPAIGN.length) startCampaign(progress.campaignIndex)
+  }, [introPhase])
+
+  useEffect(() => {
+    if (campaign && campaignPhase === "play" && left <= 0 && missionEndsAt) tickTimeout()
+  }, [left, campaign, campaignPhase, missionEndsAt, tickTimeout])
+
   const country = selectedIso ? getCatalog()?.byIso.get(selectedIso) : undefined
   const landmark = LANDMARKS.find((l) => l.id === landmarkId) ?? LANDMARKS[0]
   const localMarks = LANDMARKS.filter((l) => !selectedIso || l.country === selectedIso)
 
   function judge(hit: { iso: string | null; lat: number; lng: number }) {
     pick(hit)
+    if (useGame.getState().campaign) return
     const m = useGame.getState().mission
     if (!m) return
     if (left <= 0) {
@@ -196,22 +217,22 @@ export function GameShell() {
   }
 
   const discover = stage === "discover"
-  const missionIndex = mission ? Math.max(1, STORY_MISSIONS.findIndex((m) => m.id === mission.id) + 1) : stage === "explore" ? 0 : 1
-  const level = Math.floor(progress.xp / 120) + 1
+  const missionIndex = campaign?.number ?? (mission ? Math.max(1, STORY_MISSIONS.findIndex((m) => m.id === mission.id) + 1) : stage === "explore" ? 0 : 1)
+  const level = campaign?.number ?? Math.floor(progress.xp / 120) + 1
   const xpInto = progress.xp % 120
-  const missionProgress = Math.min(1, progress.missionsDone.length / Math.max(1, STORY_MISSIONS.length))
+  const missionProgress = Math.min(1, (progress.campaignDone.length || progress.missionsDone.length) / GEO_CAMPAIGN.length)
 
-  const leftTitle =
-    stage === "explore" ? "Исследуй" : stage === "discover" ? "Открой место" : stage === "journal" ? "Журнал" : stage === "settings" ? "Настройки" : mission?.title ?? "Миссия"
-  const leftBrief =
-    stage === "explore"
+  const leftTitle = campaign ? campaign.title : stage === "explore" ? "Исследуй" : stage === "discover" ? "Открой место" : stage === "journal" ? "Журнал" : stage === "settings" ? "Настройки" : mission?.title ?? "Миссия"
+  const leftBrief = campaign
+    ? campaign.instruction
+    : stage === "explore"
       ? "Вращай Землю, приближай, кликай страны. Сначала смотри, потом задание."
       : stage === "discover"
         ? landmark?.fact
         : stage === "journal"
           ? "Записи экспедиции."
           : stage === "settings"
-            ? "Язык: русский (i18n готов к другим). Сложность меняет таймер миссий."
+            ? "Music / SFX. Сложность меняет таймер."
             : mission?.story
 
   return (
@@ -222,20 +243,31 @@ export function GameShell() {
           <span className="pilot">{profile?.name}</span>
         </div>
         <div className="hud-xp">
-          <span>ур. {level}</span>
+          <span>LEVEL {level}</span>
           <span className="sep" />
           <span>{progress.xp} XP</span>
           <span className="sep" />
-          <span>◆ {progress.coins}</span>
+          <span>
+            {progress.campaignDone.length}/{GEO_CAMPAIGN.length}
+          </span>
         </div>
       </header>
 
       <aside className="hud-left">
         <article className="mission-card" key={stage + (mission?.id ?? "")}>
-          <p className="mission-no">{String(missionIndex).padStart(2, "0")}</p>
-          <h3>{leftTitle}</h3>
-          <p className="brief">{leftBrief}</p>
-          {(stage === "mission" || stage === "flag") && mission ? (
+            <p className="mission-no">LEVEL {String(missionIndex).padStart(2, "0")}</p>
+            <h3>{leftTitle}</h3>
+            <p className="brief">{leftBrief}</p>
+            {campaign ? (
+              <>
+                <p className="goal">
+                  <span>Task</span>
+                  {campaign.goal}
+                </p>
+                <p className="xp-reward">+{campaign.reward} XP</p>
+              </>
+            ) : null}
+            {(stage === "mission" || stage === "flag") && mission && !campaign ? (
             <>
               <p className="goal">
                 <span>Цель игрока</span>
@@ -284,12 +316,24 @@ export function GameShell() {
             </ul>
           ) : null}
           {stage === "settings" ? (
-            <div className="diff-row">
-              {(["easy", "medium", "hard"] as const).map((d) => (
-                <button key={d} type="button" className={progress.difficulty === d ? "chip on" : "chip"} onClick={() => useGame.getState().setDifficulty(d)}>
-                  {d}
-                </button>
-              ))}
+            <div className="audio-set">
+              <label className="audio-row">
+                <span>Music</span>
+                <input type="checkbox" checked={progress.musicOn} onChange={(e) => useGame.getState().setMusic(e.target.checked)} />
+              </label>
+              <input type="range" min={0} max={1} step={0.05} value={progress.musicVol} onChange={(e) => useGame.getState().setMusicVol(Number(e.target.value))} />
+              <label className="audio-row">
+                <span>SFX</span>
+                <input type="checkbox" checked={progress.sfxOn} onChange={(e) => useGame.getState().setSfx(e.target.checked)} />
+              </label>
+              <input type="range" min={0} max={1} step={0.05} value={progress.sfxVol} onChange={(e) => useGame.getState().setSfxVol(Number(e.target.value))} />
+              <div className="diff-row">
+                {(["easy", "medium", "hard"] as const).map((d) => (
+                  <button key={d} type="button" className={progress.difficulty === d ? "chip on" : "chip"} onClick={() => useGame.getState().setDifficulty(d)}>
+                    {d}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
           <div className="mission-progress">
@@ -317,16 +361,25 @@ export function GameShell() {
             {hoverTip.name}
           </div>
         ) : null}
-        {country ? <div className="gq-select-chip">{country.name}</div> : null}
+        {lastCountryName && (hitTint === "gold" || hitTint === "cyan" || selectedIso) ? (
+          <div className={`gq-select-chip tint-${hitTint || "cyan"}`}>{lastCountryName}</div>
+        ) : country ? (
+          <div className="gq-select-chip">{country.name}</div>
+        ) : null}
+        <CampaignOverlay />
       </main>
 
       <aside className="hud-right">
-        {(stage === "mission" || stage === "flag") && mission ? (
+        {campaign && campaignPhase === "play" ? (
+          <div className="timer-xl" key={campaign.id}>
+            {formatClock(left)}
+          </div>
+        ) : (stage === "mission" || stage === "flag") && mission && !campaign ? (
           <div className="timer-xl" key={mission.id}>
             {formatClock(left)}
           </div>
         ) : (
-          <div className="timer-idle">EXPLORE</div>
+          <div className="timer-idle">{campaign ? campaignPhase.toUpperCase() : "EXPLORE"}</div>
         )}
         <div className="stat-stack">
           <div className="stat">
@@ -416,10 +469,10 @@ export function GameShell() {
         </button>
         <button
           type="button"
-          className={stage === "mission" ? "on" : ""}
+          className={stage === "mission" || Boolean(campaign) ? "on" : ""}
           onClick={() => {
             setStage("mission")
-            if (!mission) startMission(STORY_MISSIONS[0])
+            startCampaign(progress.campaignIndex < GEO_CAMPAIGN.length ? progress.campaignIndex : 0)
           }}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">

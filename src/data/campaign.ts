@@ -1,204 +1,133 @@
-export type CampaignTask = {
+export type CampaignCheck =
+  | { type: "continent"; continent: string }
+  | { type: "iso"; iso: string }
+  | { type: "point"; lat: number; lng: number; radius: number; iso?: string }
+  | { type: "river"; lat: number; lng: number; radius: number; isos: string[] }
+  | { type: "range"; lat: number; lng: number; radius: number; isos: string[] }
+
+export type CampaignLevel = {
   id: string
-  prompt: string
-  options: readonly [string, string, string, string]
-  correct: 0 | 1 | 2 | 3
-  explanation: string
+  number: number
+  title: string
+  goal: string
+  instruction: string
+  hint: string
+  success: string
+  fact: string
+  timeMs: number
+  reward: number
+  check: CampaignCheck
+  fly: { lat: number; lng: number; dist: number }
+  nextFly?: { lat: number; lng: number; dist: number }
 }
 
-export const CAMPAIGN_ORDER = ["KG", "KZ", "UZ", "TJ", "TM"] as const
+export const GEO_CAMPAIGN: CampaignLevel[] = [
+  {
+    id: "l1-asia",
+    number: 1,
+    title: "Asia",
+    goal: "Find the continent of Asia on the globe.",
+    instruction: "Click any country that belongs to Asia. Ocean clicks and other continents do not count.",
+    hint: "The largest continent. East of the Ural, from Arabia to Japan — not Africa, not Europe-only.",
+    success: "Asia is the largest continent — home to Kyrgyzstan, China, India, and more.",
+    fact: "Asia holds more than half of humanity and stretches from the Bosporus to the Pacific.",
+    timeMs: 75_000,
+    reward: 120,
+    check: { type: "continent", continent: "Asia" },
+    fly: { lat: 28, lng: 88, dist: 7.15 },
+    nextFly: { lat: 41.3, lng: 74.6, dist: 5.35 },
+  },
+  {
+    id: "l2-kyrgyzstan",
+    number: 2,
+    title: "Kyrgyzstan",
+    goal: "Find Kyrgyzstan in Central Asia.",
+    instruction: "Click the country of Kyrgyzstan. Neighbours Kazakhstan, China, Uzbekistan, and Tajikistan are close — but they are not the answer.",
+    hint: "A compact mountain republic south of Kazakhstan, west of China. Capital: Bishkek.",
+    success: "Kyrgyzstan — the land of mountains, yurts, and Issyk-Kul.",
+    fact: "More than 90% of Kyrgyzstan is mountains. The Tian Shan frames the country.",
+    timeMs: 70_000,
+    reward: 140,
+    check: { type: "iso", iso: "KG" },
+    fly: { lat: 41.3, lng: 74.6, dist: 5.2 },
+    nextFly: { lat: 46.6, lng: 2.4, dist: 5.4 },
+  },
+  {
+    id: "l3-france",
+    number: 3,
+    title: "France",
+    goal: "Find France in Western Europe.",
+    instruction: "Click France. Spain, Germany, Italy, and the UK are nearby distractors.",
+    hint: "Hexagon of Western Europe, Atlantic to the west, Mediterranean to the south. Capital: Paris.",
+    success: "France — from the Alps to the Atlantic, with Paris on the Seine.",
+    fact: "France sits at the crossroads of Western Europe and gave the world the metre and Greenwich’s rival meridian of Paris.",
+    timeMs: 65_000,
+    reward: 150,
+    check: { type: "iso", iso: "FR" },
+    fly: { lat: 46.6, lng: 2.4, dist: 5.15 },
+    nextFly: { lat: 26.8, lng: 30.8, dist: 5.35 },
+  },
+  {
+    id: "l4-egypt-capital",
+    number: 4,
+    title: "Egypt · Capital",
+    goal: "Find the country of Cairo — the capital of Egypt.",
+    instruction: "Click Egypt on the globe. Cairo sits on the Nile in the north-east of Africa.",
+    hint: "North-east Africa, where the Nile meets the Mediterranean. Not Saudi Arabia, not Sudan.",
+    success: "Cairo is the capital of Egypt, on the Nile just south of the Delta.",
+    fact: "Cairo is Africa’s largest city and the gateway to Giza’s pyramids.",
+    timeMs: 70_000,
+    reward: 160,
+    check: { type: "iso", iso: "EG" },
+    fly: { lat: 26.8, lng: 30.8, dist: 5.05 },
+    nextFly: { lat: 15.6, lng: 32.6, dist: 5.5 },
+  },
+  {
+    id: "l5-nile",
+    number: 5,
+    title: "Nile",
+    goal: "Find the Nile valley.",
+    instruction: "Click along the Nile in Egypt or Sudan — the long river that runs south → north into the Mediterranean.",
+    hint: "A thin green ribbon through the Sahara. Click Egypt or Sudan near 15–30°N, ~32°E.",
+    success: "The Nile is the great river of Africa. Egypt is the gift of the Nile.",
+    fact: "The Nile flows north from the equatorial lakes and the Blue Nile of Ethiopia to the Delta at Cairo.",
+    timeMs: 80_000,
+    reward: 180,
+    check: { type: "river", lat: 18.5, lng: 32.4, radius: 9.5, isos: ["EG", "SD", "SS", "ET", "UG"] },
+    fly: { lat: 15.6, lng: 32.6, dist: 5.45 },
+    nextFly: { lat: 42.1, lng: 78.2, dist: 4.7 },
+  },
+  {
+    id: "l6-tian-shan",
+    number: 6,
+    title: "Tian Shan",
+    goal: "Find the Tian Shan mountains.",
+    instruction: "Click the Tian Shan — the ranges of Kyrgyzstan and the China border, not the Himalaya.",
+    hint: "North of the Himalaya, around 42°N 78°E. Kyrgyzstan / western China / south-east Kazakhstan.",
+    success: "Tian Shan — the Celestial Mountains. Peak Pobeda stands on the Kyrgyz–China border.",
+    fact: "The Tian Shan is a separate system from the Himalaya. Issyk-Kul lies in its northern basin.",
+    timeMs: 75_000,
+    reward: 190,
+    check: { type: "range", lat: 42.0, lng: 78.5, radius: 5.5, isos: ["KG", "KZ", "CN"] },
+    fly: { lat: 42.1, lng: 78.2, dist: 4.55 },
+    nextFly: { lat: 42.45, lng: 77.25, dist: 3.85 },
+  },
+  {
+    id: "l7-issyk-kul",
+    number: 7,
+    title: "Issyk-Kul · Coordinates",
+    goal: "Find Issyk-Kul by coordinates 42.45°N, 77.25°E.",
+    instruction: "Click the lake basin east of Bishkek, inside Kyrgyzstan. Precision matters — not every mountain click is enough.",
+    hint: "East of Bishkek, north of the Tian Shan spine. About 42.4°N 77.2°E.",
+    success: "Issyk-Kul — a high saline lake that almost never freezes.",
+    fact: "Issyk-Kul sits at 1,609 m. Depth to 668 m. Silk Road caravans passed its shores.",
+    timeMs: 80_000,
+    reward: 220,
+    check: { type: "point", lat: 42.45, lng: 77.25, radius: 2.35, iso: "KG" },
+    fly: { lat: 42.45, lng: 77.25, dist: 3.7 },
+  },
+]
 
-export const CAMPAIGN_TASKS: Record<string, CampaignTask[]> = {
-  KG: [
-    {
-      id: "kg-1",
-      prompt: "Столица Кыргызстана?",
-      options: ["Бишкек", "Ош", "Алматы", "Ташкент"],
-      correct: 0,
-      explanation: "Бишкек лежит в Чуйской долине. Ош — южная столица культуры, но не столица государства.",
-    },
-    {
-      id: "kg-2",
-      prompt: "Какое озеро Кыргызстана почти не замерзает зимой?",
-      options: ["Иссык-Куль", "Сон-Кёль", "Чатыр-Кёль", "Сары-Челек"],
-      correct: 0,
-      explanation: "Иссык-Куль солоноватое и глубокое, поэтому почти не покрывается льдом.",
-    },
-    {
-      id: "kg-3",
-      prompt: "В какой горной системе находится пик Победы?",
-      options: ["Тянь-Шань", "Памир", "Алтай", "Гималаи"],
-      correct: 0,
-      explanation: "Пик Победы (7439 м) стоит в Тянь-Шане на границе с Китаем.",
-    },
-    {
-      id: "kg-4",
-      prompt: "Как называется средневековый минарет близ Токмака?",
-      options: ["Башня Бурана", "Регистан", "Байтерек", "Калян"],
-      correct: 0,
-      explanation: "Бурана — минарет XI века, остаток города Баласагун.",
-    },
-    {
-      id: "kg-5",
-      prompt: "Как называется традиционный дом кыргызских кочевников?",
-      options: ["Юрта (боз үй)", "Иглу", "Чум", "Вигвам"],
-      correct: 0,
-      explanation: "Юрта собирается из решётки, купола и войлока — её можно переносить со стадами.",
-    },
-    {
-      id: "kg-6",
-      prompt: "С какой страной Кыргызстан граничит на севере?",
-      options: ["Казахстан", "Пакистан", "Иран", "Монголия"],
-      correct: 0,
-      explanation: "Северная граница проходит с Казахстаном, Чуйская долина открыта к северу.",
-    },
-  ],
-  KZ: [
-    {
-      id: "kz-1",
-      prompt: "Столица Казахстана?",
-      options: ["Астана", "Алматы", "Шымкент", "Бишкек"],
-      correct: 0,
-      explanation: "Столицу перенесли из Алматы в Астану в 1997 году.",
-    },
-    {
-      id: "kz-2",
-      prompt: "Какой монумент — символ Астаны с золотым шаром?",
-      options: ["Байтерек", "Хан Шатыр", "Бурана", "Эйфелева башня"],
-      correct: 0,
-      explanation: "Байтерек — древо жизни, с площадки виден новый центр столицы.",
-    },
-    {
-      id: "kz-3",
-      prompt: "Казахстан по площади среди стран мира — это…",
-      options: ["девятая по площади страна", "самая маленькая в Азии", "островное государство", "часть Африки"],
-      correct: 0,
-      explanation: "Казахстан — девятая страна мира по площади и крупнейшая в Центральной Азии.",
-    },
-    {
-      id: "kz-4",
-      prompt: "Как называется гигантский шатёр в Астане?",
-      options: ["Хан Шатыр", "Регистан", "Колизей", "Хан Ордо"],
-      correct: 0,
-      explanation: "Хан Шатыр — торгово-развлекательный комплекс в форме шатра.",
-    },
-    {
-      id: "kz-5",
-      prompt: "Какое море омывает запад Казахстана?",
-      options: ["Каспийское", "Чёрное", "Аральское полностью сохранилось", "Средиземное"],
-      correct: 0,
-      explanation: "На западе Казахстан выходит к Каспийскому морю. Арал сильно обмелел.",
-    },
-  ],
-  UZ: [
-    {
-      id: "uz-1",
-      prompt: "Столица Узбекистана?",
-      options: ["Ташкент", "Самарканд", "Бухара", "Хива"],
-      correct: 0,
-      explanation: "Ташкент — столица и крупнейший город. Самарканд — древняя столица Тимуридов.",
-    },
-    {
-      id: "uz-2",
-      prompt: "Где находится площадь Регистан?",
-      options: ["Самарканд", "Бишкек", "Ашхабад", "Душанбе"],
-      correct: 0,
-      explanation: "Регистан — ансамбль трёх медресе в Самарканде.",
-    },
-    {
-      id: "uz-3",
-      prompt: "Минарет Калян стоит в…",
-      options: ["Бухаре", "Оше", "Астане", "Каире"],
-      correct: 0,
-      explanation: "Калян — высокий минарет XII века в историческом центре Бухары.",
-    },
-    {
-      id: "uz-4",
-      prompt: "По какой великой торговой дороге лежат города Узбекистана?",
-      options: ["Шёлковый путь", "Путь из варяг в греки", "Янтарный путь", "Транссиб"],
-      correct: 0,
-      explanation: "Самарканд, Бухара и Хива были узлами Шёлкового пути.",
-    },
-    {
-      id: "uz-5",
-      prompt: "Какой цвет куполов чаще всего вспоминают в Самарканде?",
-      options: ["Бирюзовый", "Алый", "Чёрный", "Оранжевый"],
-      correct: 0,
-      explanation: "Бирюзовая глазурь куполов — узнаваемый цвет тимуридской архитектуры.",
-    },
-  ],
-  TJ: [
-    {
-      id: "tj-1",
-      prompt: "Столица Таджикистана?",
-      options: ["Душанбе", "Худжанд", "Хорог", "Ташкент"],
-      correct: 0,
-      explanation: "Душанбе означает «понедельник» — день базара, вокруг которого вырос город.",
-    },
-    {
-      id: "tj-2",
-      prompt: "Высшая точка Таджикистана?",
-      options: ["Пик Исмоила Сомони", "Пик Победы", "Фудзи", "Столовая гора"],
-      correct: 0,
-      explanation: "Пик Исмоила Сомони (7495 м) — высочайшая вершина Памира.",
-    },
-    {
-      id: "tj-3",
-      prompt: "Большая часть территории Таджикистана — это…",
-      options: ["горы", "низменности", "острова", "тундра"],
-      correct: 0,
-      explanation: "Более 90% страны занимают горы Памира и Гиссаро-Алая.",
-    },
-    {
-      id: "tj-4",
-      prompt: "Как называется высокогорная дорога через Памир?",
-      options: ["Памирский тракт", "Шёлковый экспресс", "Транссиб", "Аппиева дорога"],
-      correct: 0,
-      explanation: "Памирский тракт — одна из самых высокогорных дорог мира.",
-    },
-    {
-      id: "tj-5",
-      prompt: "С какой страной Таджикистан разделяет Памир на востоке?",
-      options: ["Китай", "Турция", "Египет", "Бразилия"],
-      correct: 0,
-      explanation: "Восточный Памир выходит к Китаю через перевал Кульма.",
-    },
-  ],
-  TM: [
-    {
-      id: "tm-1",
-      prompt: "Столица Туркменистана?",
-      options: ["Ашхабад", "Мары", "Туркменабад", "Ташкент"],
-      correct: 0,
-      explanation: "Ашхабад — беломраморная столица у подножия Копетдага.",
-    },
-    {
-      id: "tm-2",
-      prompt: "Как называют горящий газовый кратер в Каракумах?",
-      options: ["Дарваза", "Байтерек", "Регистан", "Иссык-Куль"],
-      correct: 0,
-      explanation: "Дарваза горит десятилетиями и известна как «Врата ада».",
-    },
-    {
-      id: "tm-3",
-      prompt: "Какая пустыня занимает большую часть Туркменистана?",
-      options: ["Каракумы", "Сахара", "Гоби", "Атакама"],
-      correct: 0,
-      explanation: "Каракумы — песчаная пустыня, занимающая около 70% страны.",
-    },
-    {
-      id: "tm-4",
-      prompt: "К какому морю выходит Туркменистан?",
-      options: ["Каспийскому", "Чёрному", "Средиземному", "Балтийскому"],
-      correct: 0,
-      explanation: "Запад страны омывает Каспийское море.",
-    },
-    {
-      id: "tm-5",
-      prompt: "Какой цвет чаще всего встречается на мраморе зданий Ашхабада?",
-      options: ["Белый", "Зелёный", "Синий", "Чёрный"],
-      correct: 0,
-      explanation: "Ашхабад известен белым мрамором фасадов и золотыми куполами.",
-    },
-  ],
+export function campaignById(id: string) {
+  return GEO_CAMPAIGN.find((l) => l.id === id) ?? null
 }

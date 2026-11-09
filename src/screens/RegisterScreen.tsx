@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { audio } from "../audio/AudioManager"
 import { GlobeMap } from "../game/GlobeMap"
 import { useGame } from "../store/gameStore"
 
@@ -10,6 +11,8 @@ export function RegisterScreen() {
 
   function start() {
     if (!canStart || leaving) return
+    audio.unlock()
+    audio.play("startClick")
     setLeaving(true)
     window.setTimeout(() => {
       void register(name, "ocean")

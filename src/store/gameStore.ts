@@ -1,4 +1,7 @@
 import { create } from "zustand"
+import { audio } from "../audio/AudioManager"
+import { GEO_CAMPAIGN, type CampaignLevel } from "../data/campaign"
+import { countryNameOf, evaluateLevel } from "../geo/hitTest"
 import { LANDMARKS } from "../geo/catalog"
 import type { StoryMission } from "../game/storyMissions"
 import type { Locale } from "../i18n"
@@ -8,6 +11,8 @@ import type { Profile } from "../types/electron"
 
 export type Stage = "register" | "explore" | "discover" | "mission" | "flag" | "journal" | "settings"
 export type IntroPhase = "card" | "approach" | "ready"
+export type CampaignPhase = "play" | "correct" | "success" | "wrong" | "timeout" | "levelComplete" | "campaignComplete" | "transition"
+export type HitTint = "gold" | "cyan" | "red" | "orange" | null
 
 export type FlyTo = { lat: number; lng: number; dist: number } | null
 
@@ -21,7 +26,13 @@ export type Progress = {
   journal: { at: number; text: string }[]
   difficulty: "easy" | "medium" | "hard"
   volume: number
+  musicOn: boolean
+  sfxOn: boolean
+  musicVol: number
+  sfxVol: number
   locale: Locale
+  campaignIndex: number
+  campaignDone: string[]
 }
 
 const defaultProgress = (): Progress => ({
@@ -34,7 +45,13 @@ const defaultProgress = (): Progress => ({
   journal: [],
   difficulty: "medium",
   volume: 0.7,
+  musicOn: true,
+  sfxOn: true,
+  musicVol: 0.32,
+  sfxVol: 0.7,
   locale: "ru",
+  campaignIndex: 0,
+  campaignDone: [],
 })
 
 type GameState = {
@@ -52,6 +69,12 @@ type GameState = {
   missionEndsAt: number | null
   lastFeedback: { ok: boolean; text: string } | null
   introPhase: IntroPhase
+  campaign: CampaignLevel | null
+  campaignPhase: CampaignPhase
+  hitTint: HitTint
+  spinBoost: number
+  displayXp: number
+  lastCountryName: string | null
   hydrate: () => Promise<void>
   register: (name: string, avatar: string) => Promise<void>
   finishIntro: () => void
@@ -68,8 +91,17 @@ type GameState = {
   setFeedback: (ok: boolean, text: string) => void
   setDifficulty: (d: Progress["difficulty"]) => void
   setVolume: (v: number) => void
+  setMusic: (on: boolean) => void
+  setSfx: (on: boolean) => void
+  setMusicVol: (v: number) => void
+  setSfxVol: (v: number) => void
   setLocalePref: (locale: Locale) => void
   resetProgress: () => Promise<void>
+  startCampaign: (index?: number) => void
+  retryLevel: () => void
+  continueCampaign: () => void
+  tickTimeout: () => void
+  syncAudio: () => void
 }
 
 async function persist(progress: Progress) {
@@ -97,6 +129,12 @@ export const useGame = create<GameState>((set, get) => ({
   missionEndsAt: null,
   lastFeedback: null,
   introPhase: "card",
+  campaign: null,
+  campaignPhase: "play",
+  hitTint: null,
+  spinBoost: 0,
+  displayXp: 0,
+  lastCountryName: null,
 
   hydrate: async () => {
     try {
@@ -112,9 +150,15 @@ export const useGame = create<GameState>((set, get) => ({
         (localStorage.getItem("gq-progress") ? JSON.parse(localStorage.getItem("gq-progress")!) : null)) as Progress | null
       const progress = saved ? { ...defaultProgress(), ...saved } : defaultProgress()
       setLocale(progress.locale)
+      audio.setMaster(progress.volume)
+      audio.setMusic(progress.musicOn)
+      audio.setSfx(progress.sfxOn)
+      audio.setMusicVol(progress.musicVol)
+      audio.setSfxVol(progress.sfxVol)
       set({
         profile,
         progress,
+        displayXp: progress.xp,
         ready: true,
         stage: profile ? "explore" : "register",
         introPhase: profile ? "approach" : "card",
@@ -130,7 +174,10 @@ export const useGame = create<GameState>((set, get) => ({
     else localStorage.setItem("gq-profile", JSON.stringify(profile))
     const progress = grant(get().progress, "first-step")
     await persist(progress)
-    set({ profile, progress, stage: "explore", introPhase: "approach" })
+    audio.unlock()
+    audio.play("start")
+    audio.play("ambient")
+    set({ profile, progress, displayXp: progress.xp, stage: "explore", introPhase: "approach" })
   },
 
   finishIntro: () => {
@@ -152,15 +199,90 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   pick: (hit) => {
+    const st = get()
     const visited =
-      hit.iso && !get().progress.visited.includes(hit.iso) ? [...get().progress.visited, hit.iso] : get().progress.visited
-    const progress = { ...get().progress, visited }
-    set({
-      selectedIso: hit.iso,
-      lastHit: hit,
-      progress,
-      flyTo: hit.iso ? { lat: hit.lat, lng: hit.lng, dist: 3.85 } : { lat: 18, lng: 20, dist: 6.5 },
-    })
+      hit.iso && !st.progress.visited.includes(hit.iso) ? [...st.progress.visited, hit.iso] : st.progress.visited
+    const progress = { ...st.progress, visited }
+    const name = countryNameOf(hit.iso)
+    const campaign = st.campaign
+    const playing = campaign && st.campaignPhase === "play" && st.introPhase === "ready"
+
+    if (!playing) {
+      set({
+        selectedIso: hit.iso,
+        lastHit: hit,
+        lastCountryName: name,
+        progress,
+        flyTo: hit.iso ? { lat: hit.lat, lng: hit.lng, dist: 3.85 } : st.flyTo,
+      })
+      void persist(progress)
+      return
+    }
+
+    if (st.missionEndsAt && Date.now() >= st.missionEndsAt) {
+      audio.play("fail")
+      set({
+        selectedIso: hit.iso,
+        lastHit: hit,
+        lastCountryName: name,
+        progress,
+        campaignPhase: "timeout",
+        hitTint: "orange",
+        lastFeedback: { ok: false, text: "TIME'S UP" },
+      })
+      void persist(progress)
+      return
+    }
+
+    const ok = evaluateLevel(campaign, hit)
+    if (ok) {
+      audio.play("discovery")
+      set({
+        selectedIso: hit.iso || (campaign.check.type === "iso" ? campaign.check.iso : hit.iso),
+        highlightIso: hit.iso,
+        lastHit: hit,
+        lastCountryName: name,
+        progress,
+        campaignPhase: "correct",
+        hitTint: "gold",
+        spinBoost: 0.22,
+        lastFeedback: { ok: true, text: "CORRECT LOCATION" },
+      })
+      window.setTimeout(() => {
+        const now = get()
+        if (now.campaignPhase !== "correct") return
+        audio.play("success")
+        const gained = campaign.reward
+        let next = { ...now.progress, xp: now.progress.xp + gained, coins: now.progress.coins + 20 }
+        if (next.xp >= 500) next = grant(next, "xp-500")
+        const ticks = 8
+        for (let i = 0; i < ticks; i += 1) {
+          window.setTimeout(() => audio.play("xp"), 80 * i)
+        }
+        set({
+          campaignPhase: "success",
+          hitTint: "cyan",
+          progress: next,
+          lastFeedback: { ok: true, text: "GREAT JOB" },
+        })
+        void persist(next)
+      }, 1100)
+    } else {
+      audio.play("fail")
+      set({
+        selectedIso: hit.iso,
+        lastHit: hit,
+        lastCountryName: name,
+        progress,
+        campaignPhase: "wrong",
+        hitTint: "red",
+        lastFeedback: { ok: false, text: "TRY AGAIN" },
+      })
+      window.setTimeout(() => {
+        if (get().campaignPhase !== "wrong") return
+        set({ campaignPhase: "play", hitTint: null })
+      }, 2200)
+    }
     void persist(progress)
   },
 
@@ -242,9 +364,148 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   setVolume: (v) => {
+    audio.setMaster(v)
     const progress = { ...get().progress, volume: v }
     set({ progress })
     void persist(progress)
+  },
+
+  setMusic: (on) => {
+    audio.setMusic(on)
+    const progress = { ...get().progress, musicOn: on }
+    set({ progress })
+    void persist(progress)
+  },
+
+  setSfx: (on) => {
+    audio.setSfx(on)
+    const progress = { ...get().progress, sfxOn: on }
+    set({ progress })
+    void persist(progress)
+  },
+
+  setMusicVol: (v) => {
+    audio.setMusicVol(v)
+    const progress = { ...get().progress, musicVol: v }
+    set({ progress })
+    void persist(progress)
+  },
+
+  setSfxVol: (v) => {
+    audio.setSfxVol(v)
+    const progress = { ...get().progress, sfxVol: v }
+    set({ progress })
+    void persist(progress)
+  },
+
+  syncAudio: () => {
+    const p = get().progress
+    audio.setMaster(p.volume)
+    audio.setMusic(p.musicOn)
+    audio.setSfx(p.sfxOn)
+    audio.setMusicVol(p.musicVol)
+    audio.setSfxVol(p.sfxVol)
+  },
+
+  startCampaign: (index) => {
+    const i = Math.max(0, Math.min(GEO_CAMPAIGN.length - 1, index ?? get().progress.campaignIndex))
+    const level = GEO_CAMPAIGN[i]
+    const bonus = get().progress.difficulty === "hard" ? 0.75 : get().progress.difficulty === "easy" ? 1.35 : 1
+    audio.play("transition")
+    audio.play("zoom")
+    set({
+      campaign: level,
+      campaignPhase: "play",
+      hitTint: null,
+      spinBoost: 0,
+      lastFeedback: null,
+      selectedIso: null,
+      highlightIso: null,
+      mission: null,
+      stage: "mission",
+      missionEndsAt: Date.now() + level.timeMs * bonus,
+      flyTo: { ...level.fly },
+    })
+  },
+
+  retryLevel: () => {
+    const level = get().campaign
+    if (!level) {
+      get().startCampaign()
+      return
+    }
+    const bonus = get().progress.difficulty === "hard" ? 0.75 : get().progress.difficulty === "easy" ? 1.35 : 1
+    audio.play("transition")
+    set({
+      campaignPhase: "play",
+      hitTint: null,
+      lastFeedback: null,
+      missionEndsAt: Date.now() + level.timeMs * bonus,
+      flyTo: { ...level.fly },
+    })
+  },
+
+  continueCampaign: () => {
+    const level = get().campaign
+    if (!level) return
+    const done = get().progress.campaignDone.includes(level.id)
+      ? get().progress.campaignDone
+      : [...get().progress.campaignDone, level.id]
+    const missionsDone = get().progress.missionsDone.includes(level.id)
+      ? get().progress.missionsDone
+      : [...get().progress.missionsDone, level.id]
+    const nextIndex = level.number
+    const last = nextIndex >= GEO_CAMPAIGN.length
+    const progress = {
+      ...get().progress,
+      campaignDone: done,
+      missionsDone,
+      campaignIndex: last ? GEO_CAMPAIGN.length : nextIndex,
+    }
+    audio.play("unlock")
+    if (last) {
+      audio.play("missionComplete")
+      set({
+        progress,
+        campaignPhase: "campaignComplete",
+        hitTint: "gold",
+        lastFeedback: { ok: true, text: "CAMPAIGN COMPLETED" },
+      })
+      void persist(progress)
+      return
+    }
+    const next = GEO_CAMPAIGN[nextIndex]
+    audio.play("transition")
+    audio.play("zoom")
+    const bonus = progress.difficulty === "hard" ? 0.75 : progress.difficulty === "easy" ? 1.35 : 1
+    set({
+      progress,
+      campaignPhase: "transition",
+      hitTint: "cyan",
+      lastFeedback: { ok: true, text: "LEVEL COMPLETED" },
+      flyTo: level.nextFly ?? next.fly,
+    })
+    void persist(progress)
+    window.setTimeout(() => {
+      set({
+        campaign: next,
+        campaignPhase: "play",
+        hitTint: null,
+        selectedIso: null,
+        highlightIso: null,
+        lastFeedback: null,
+        missionEndsAt: Date.now() + next.timeMs * bonus,
+        flyTo: { ...next.fly },
+        stage: "mission",
+      })
+    }, 900)
+  },
+
+  tickTimeout: () => {
+    if (get().campaignPhase !== "play") return
+    if (!get().campaign) return
+    audio.play("fail")
+    set({ campaignPhase: "timeout", hitTint: "orange", lastFeedback: { ok: false, text: "TIME'S UP" } })
   },
 
   setLocalePref: (locale) => {
@@ -257,7 +518,13 @@ export const useGame = create<GameState>((set, get) => ({
   resetProgress: async () => {
     await window.geoQuest?.resetProgress()
     const progress = defaultProgress()
-    set({ progress })
+    set({
+      progress,
+      displayXp: 0,
+      campaign: null,
+      campaignPhase: "play",
+      hitTint: null,
+    })
     await persist(progress)
   },
 }))

@@ -11,6 +11,7 @@ import {
   Vector3,
   type DirectionalLight,
   type Group,
+  type LineBasicMaterial,
 } from "three"
 import { useGame } from "../store/gameStore"
 import type { CountryRecord, NamedLine } from "../geo/catalog"
@@ -110,6 +111,9 @@ export function EarthScene({
   const { camera } = useThree()
   const introPhase = useGame((s) => s.introPhase)
   const finishIntro = useGame((s) => s.finishIntro)
+  const hitTint = useGame((s) => s.hitTint)
+  const spinBoost = useGame((s) => s.spinBoost)
+  const campaignPhase = useGame((s) => s.campaignPhase)
   const earth = useRef<Group>(null)
   const fly = useRef(0)
   const target = useRef(new Vector3(0, 0.4, 6.2))
@@ -118,21 +122,37 @@ export function EarthScene({
   const near = useRef(new Vector3(0, 0.42, 6.35))
   const introClock = useRef(0)
   const introDone = useRef(false)
+  const boost = useRef(0)
+  const outline = useRef(new Color("#5ee7ff"))
+  const outlineMat = useRef<LineBasicMaterial>(null)
+  const flying = useRef(false)
 
   useEffect(() => {
     if (!flyTo || introPhase !== "ready") return
     target.current.copy(cameraFor(flyTo.lat, flyTo.lng, flyTo.dist))
     fly.current = 1
+    flying.current = true
   }, [flyTo, introPhase])
 
+  useEffect(() => {
+    boost.current = spinBoost
+  }, [spinBoost])
+
   useFrame((_, dt) => {
-    const spin = introPhase === "ready" ? 0.01 : 0.09
+    const slowCorrect = campaignPhase === "correct" || campaignPhase === "success"
+    const spin = introPhase === "ready" ? (slowCorrect ? 0.045 + boost.current : 0.01 + boost.current) : 0.09
+    boost.current = Math.max(0, boost.current - dt * 0.08)
     if (earth.current) earth.current.rotation.y += dt * spin
     if (sun.current) sun.current.position.copy(camera.position)
 
+    const want =
+      hitTint === "gold" ? "#e8c547" : hitTint === "red" ? "#ff6a3d" : hitTint === "orange" ? "#ff9a4a" : "#5ee7ff"
+    outline.current.lerp(new Color(want), 1 - Math.exp(-dt * 8))
+    if (outlineMat.current) outlineMat.current.color.copy(outline.current)
+
     if (introPhase !== "ready") {
       const goal = introPhase === "approach" ? near.current : far.current
-      camera.position.lerp(goal, 1 - Math.exp(-dt * (introPhase === "approach" ? 0.7 : 1.1)))
+      camera.position.lerp(goal, 1 - Math.exp(-dt * (introPhase === "approach" ? 0.62 : 1.05)))
       camera.lookAt(look.current)
       if (introPhase === "approach") {
         introClock.current += dt
@@ -145,9 +165,12 @@ export function EarthScene({
     }
 
     if (fly.current > 0) {
-      camera.position.lerp(target.current, 1 - Math.exp(-dt * 1.05))
+      camera.position.lerp(target.current, 1 - Math.exp(-dt * 0.85))
       camera.lookAt(look.current)
-      if (camera.position.distanceTo(target.current) < 0.045) fly.current = 0
+      if (camera.position.distanceTo(target.current) < 0.04) {
+        fly.current = 0
+        flying.current = false
+      }
     }
   })
 
@@ -225,19 +248,19 @@ export function EarthScene({
       ) : null}
       {selectedGeo ? (
         <lineSegments geometry={selectedGeo}>
-          <lineBasicMaterial color="#5ee7ff" transparent opacity={0.95} />
+          <lineBasicMaterial ref={outlineMat} color="#5ee7ff" transparent opacity={0.98} />
         </lineSegments>
       ) : null}
       </group>
       <OrbitControls
         enablePan={false}
-        enabled={introPhase === "ready"}
+        enabled={introPhase === "ready" && campaignPhase !== "transition" && campaignPhase !== "correct"}
         minDistance={2.45}
         maxDistance={12}
         zoomSpeed={0.45}
         rotateSpeed={0.32}
         enableDamping
-        dampingFactor={0.085}
+        dampingFactor={0.078}
       />
     </group>
   )

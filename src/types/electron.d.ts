@@ -21,6 +21,9 @@ declare global {
       landmark: (id: string) => void
       pick: (iso: string | null, lat: number, lng: number) => void
       flag: () => void
+      continue: () => void
+      retry: () => void
+      campaign: (index?: number) => void
     }
   }
 }
