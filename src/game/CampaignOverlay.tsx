@@ -30,6 +30,8 @@ export function CampaignOverlay() {
   const retryLevel = useGame((s) => s.retryLevel)
   const lastFeedback = useGame((s) => s.lastFeedback)
 
+  const stage = useGame((s) => s.stage)
+  if (stage === "discover") return null
   if (!campaign) return null
   if (phase === "play" || phase === "correct" || phase === "transition") return null
 

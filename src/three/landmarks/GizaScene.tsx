@@ -1,4 +1,5 @@
 import { Html } from "@react-three/drei"
+import { Guide } from "./Guide"
 
 function Pyramid({
   position,
@@ -44,7 +45,15 @@ function Sphinx() {
   )
 }
 
-export function GizaScene({ onPoint }: { onPoint: (title: string, text: string) => void }) {
+export function GizaScene({
+  onPoint,
+  speech,
+  speaking,
+}: {
+  onPoint: (title: string, text: string) => void
+  speech: string
+  speaking: boolean
+}) {
   return (
     <>
       <color attach="background" args={["#f0d5a0"]} />
@@ -60,6 +69,7 @@ export function GizaScene({ onPoint }: { onPoint: (title: string, text: string) 
         <meshStandardMaterial color="#4f8aa8" roughness={0.3} />
       </mesh>
       <Pyramid position={[0, 1.55, 0]} size={2.2} height={3.1} />
+      <Guide position={[0, 3.25, 0.2]} speech={speech} speaking={speaking} />
       <Pyramid position={[-3.4, 1.15, -1.1]} size={1.7} height={2.3} />
       <Pyramid position={[-5.6, 0.75, -2]} size={1.1} height={1.5} />
       <Sphinx />
