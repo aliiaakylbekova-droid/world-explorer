@@ -29,7 +29,48 @@ export function CampaignOverlay() {
   const continueCampaign = useGame((s) => s.continueCampaign)
   const retryLevel = useGame((s) => s.retryLevel)
   const lastFeedback = useGame((s) => s.lastFeedback)
+  const mission = useGame((s) => s.mission)
+  const stage = useGame((s) => s.stage)
 
+  if (stage === "discover") return null
+  if (stage === "flag" && lastFeedback) {
+    if (lastFeedback.ok) {
+      return (
+        <div className="gq-result is-ok" data-result="success">
+          <p className="kicker">GREAT JOB</p>
+          <h2>YOU FOUND THE CORRECT LOCATION</h2>
+          <p className="place">{lastCountryName || mission?.targetName}</p>
+          <p>{mission?.recap}</p>
+        </div>
+      )
+    }
+    return (
+      <div className="gq-result is-wrong" data-result="wrong">
+        <p className="kicker">TRY AGAIN</p>
+        <h2>Not this place</h2>
+        <p>{lastFeedback.text}</p>
+      </div>
+    )
+  }
+  if (!campaign && lastFeedback) {
+    if (lastFeedback.ok) {
+      return (
+        <div className="gq-result is-ok" data-result="success">
+          <p className="kicker">GREAT JOB</p>
+          <h2>YOU FOUND THE CORRECT LOCATION</h2>
+          <p className="place">{lastCountryName || mission?.targetName}</p>
+          <p>{mission?.recap}</p>
+        </div>
+      )
+    }
+    return (
+      <div className="gq-result is-wrong" data-result="wrong">
+        <p className="kicker">TRY AGAIN</p>
+        <h2>Not this place</h2>
+        <p>{lastFeedback.text}</p>
+      </div>
+    )
+  }
   if (!campaign) return null
   if (phase === "play" || phase === "correct" || phase === "transition") return null
 
@@ -39,7 +80,7 @@ export function CampaignOverlay() {
         <p className="kicker">TRY AGAIN</p>
         <h2>Not this place</h2>
         <p>
-          {lastCountryName ? `${lastCountryName} is not the target.` : "That click is not the objective."} {campaign.hint}
+          {lastCountryName ? `${lastCountryName} is not the target.` : "That click is not the objective."} {lastFeedback?.text || campaign.hint}
         </p>
       </div>
     )
@@ -61,8 +102,8 @@ export function CampaignOverlay() {
   if (phase === "success") {
     return (
       <div className="gq-result is-ok" data-result="success">
-        <p className="kicker">{lastFeedback?.text === "GREAT JOB" ? "GREAT JOB" : "CORRECT LOCATION"}</p>
-        <h2>CORRECT LOCATION</h2>
+        <p className="kicker">GREAT JOB</p>
+        <h2>YOU FOUND THE CORRECT LOCATION</h2>
         <p className="place">{lastCountryName || campaign.title}</p>
         <p>{campaign.fact}</p>
         <p className="xp-line">

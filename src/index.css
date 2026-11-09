@@ -90,6 +90,10 @@ button, input, select { font-family: inherit; }
 .hud-top, .hud-left, .hud-right, .hud-bottom {
   position: absolute;
   z-index: 2;
+  pointer-events: none;
+}
+.hud-top, .hud-bottom,
+.hud-left > *, .hud-right > * {
   pointer-events: auto;
 }
 

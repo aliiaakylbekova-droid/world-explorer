@@ -1,7 +1,7 @@
 import { create } from "zustand"
 import { audio } from "../audio/AudioManager"
 import { GEO_CAMPAIGN, type CampaignLevel } from "../data/campaign"
-import { countryNameOf, evaluateLevel } from "../geo/hitTest"
+import { countryNameOf, evaluateLevel, evaluateMission } from "../geo/hitTest"
 import { LANDMARKS } from "../geo/catalog"
 import type { StoryMission } from "../game/storyMissions"
 import type { Locale } from "../i18n"
@@ -13,6 +13,8 @@ export type Stage = "register" | "explore" | "discover" | "mission" | "flag" | "
 export type IntroPhase = "card" | "approach" | "ready"
 export type CampaignPhase = "play" | "correct" | "success" | "wrong" | "timeout" | "levelComplete" | "campaignComplete" | "transition"
 export type HitTint = "gold" | "cyan" | "red" | "orange" | null
+
+let autoAdvanceTimer = 0
 
 export type FlyTo = { lat: number; lng: number; dist: number } | null
 
@@ -75,6 +77,7 @@ type GameState = {
   spinBoost: number
   displayXp: number
   lastCountryName: string | null
+  advancing: boolean
   hydrate: () => Promise<void>
   register: (name: string, avatar: string) => Promise<void>
   finishIntro: () => void
@@ -135,6 +138,7 @@ export const useGame = create<GameState>((set, get) => ({
   spinBoost: 0,
   displayXp: 0,
   lastCountryName: null,
+  advancing: false,
 
   hydrate: async () => {
     try {
@@ -199,15 +203,24 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   pick: (hit) => {
+    audio.unlock()
     const st = get()
+    if (st.introPhase !== "ready") return
+    if (st.stage === "discover") return
+    const busy = st.campaignPhase === "correct" || st.campaignPhase === "success" || st.campaignPhase === "transition"
+    if (busy && st.stage !== "flag") return
+
     const visited =
       hit.iso && !st.progress.visited.includes(hit.iso) ? [...st.progress.visited, hit.iso] : st.progress.visited
     const progress = { ...st.progress, visited }
     const name = countryNameOf(hit.iso)
-    const campaign = st.campaign
-    const playing = campaign && st.campaignPhase === "play" && st.introPhase === "ready"
+    void persist(progress)
 
-    if (!playing) {
+    const useFlag = st.stage === "flag" && st.mission
+    const useStory = !useFlag && st.mission && st.stage === "mission" && !st.campaign
+    const useCampaign = !useFlag && st.campaign && st.campaignPhase === "play"
+
+    if (!useFlag && !useStory && !useCampaign) {
       set({
         selectedIso: hit.iso,
         lastHit: hit,
@@ -215,75 +228,91 @@ export const useGame = create<GameState>((set, get) => ({
         progress,
         flyTo: hit.iso ? { lat: hit.lat, lng: hit.lng, dist: 3.85 } : st.flyTo,
       })
-      void persist(progress)
       return
     }
 
-    if (st.missionEndsAt && Date.now() >= st.missionEndsAt) {
+    if (st.missionEndsAt && Date.now() >= st.missionEndsAt && (useCampaign || useFlag || useStory)) {
       audio.play("fail")
       set({
         selectedIso: hit.iso,
         lastHit: hit,
         lastCountryName: name,
         progress,
-        campaignPhase: "timeout",
+        campaignPhase: useCampaign ? "timeout" : st.campaignPhase,
         hitTint: "orange",
         lastFeedback: { ok: false, text: "TIME'S UP" },
       })
-      void persist(progress)
       return
     }
 
-    const ok = evaluateLevel(campaign, hit)
+    let ok = false
+    let fact = ""
+    let reward = 80
+    if (useFlag || useStory) {
+      ok = evaluateMission(st.mission!, hit)
+      fact = st.mission!.recap
+      reward = st.mission!.xp
+    } else if (useCampaign) {
+      ok = evaluateLevel(st.campaign!, hit)
+      fact = st.campaign!.fact
+      reward = st.campaign!.reward
+    }
+
     if (ok) {
       audio.play("discovery")
+      if (st.mission && (useFlag || useStory)) {
+        get().completeMission(st.mission.id)
+        get().note(`${st.mission.title}: ${st.mission.recap}`)
+      }
       set({
-        selectedIso: hit.iso || (campaign.check.type === "iso" ? campaign.check.iso : hit.iso),
+        selectedIso: hit.iso,
         highlightIso: hit.iso,
         lastHit: hit,
         lastCountryName: name,
         progress,
-        campaignPhase: "correct",
+        campaignPhase: useCampaign ? "correct" : st.campaignPhase,
         hitTint: "gold",
-        spinBoost: 0.22,
-        lastFeedback: { ok: true, text: "CORRECT LOCATION" },
+        spinBoost: 0,
+        lastFeedback: { ok: true, text: "YOU FOUND THE CORRECT LOCATION" },
       })
       window.setTimeout(() => {
-        const now = get()
-        if (now.campaignPhase !== "correct") return
         audio.play("success")
-        const gained = campaign.reward
-        let next = { ...now.progress, xp: now.progress.xp + gained, coins: now.progress.coins + 20 }
+        const now = get()
+        let next = { ...now.progress, xp: now.progress.xp + reward, coins: now.progress.coins + 20 }
         if (next.xp >= 500) next = grant(next, "xp-500")
-        const ticks = 8
-        for (let i = 0; i < ticks; i += 1) {
-          window.setTimeout(() => audio.play("xp"), 80 * i)
-        }
+        for (let i = 0; i < 6; i += 1) window.setTimeout(() => audio.play("xp"), 80 * i)
         set({
-          campaignPhase: "success",
+          campaignPhase: useCampaign ? "success" : now.campaignPhase,
           hitTint: "cyan",
           progress: next,
           lastFeedback: { ok: true, text: "GREAT JOB" },
         })
         void persist(next)
-      }, 1100)
+        if (useCampaign) {
+          window.clearTimeout(autoAdvanceTimer)
+          autoAdvanceTimer = window.setTimeout(() => {
+            if (get().campaignPhase === "success") get().continueCampaign()
+          }, 2600)
+        }
+      }, 900)
     } else {
       audio.play("fail")
+      const hint = useCampaign ? st.campaign!.hint : st.mission?.hint || "Try another place on the globe."
       set({
         selectedIso: hit.iso,
         lastHit: hit,
         lastCountryName: name,
         progress,
-        campaignPhase: "wrong",
+        campaignPhase: useCampaign ? "wrong" : st.campaignPhase,
         hitTint: "red",
-        lastFeedback: { ok: false, text: "TRY AGAIN" },
+        lastFeedback: { ok: false, text: hint },
       })
       window.setTimeout(() => {
         if (get().campaignPhase !== "wrong") return
-        set({ campaignPhase: "play", hitTint: null })
+        set({ campaignPhase: useCampaign ? "play" : get().campaignPhase, hitTint: null })
       }, 2200)
     }
-    void persist(progress)
+    void fact
   },
 
   setLayers: (partial) => set({ layers: { ...get().layers, ...partial } }),
@@ -425,6 +454,7 @@ export const useGame = create<GameState>((set, get) => ({
       stage: "mission",
       missionEndsAt: Date.now() + level.timeMs * bonus,
       flyTo: { ...level.fly },
+      advancing: false,
     })
   },
 
@@ -448,6 +478,10 @@ export const useGame = create<GameState>((set, get) => ({
   continueCampaign: () => {
     const level = get().campaign
     if (!level) return
+    if (get().advancing) return
+    if (get().campaignPhase !== "success" && get().campaignPhase !== "levelComplete") return
+    window.clearTimeout(autoAdvanceTimer)
+    set({ advancing: true })
     const done = get().progress.campaignDone.includes(level.id)
       ? get().progress.campaignDone
       : [...get().progress.campaignDone, level.id]
@@ -470,6 +504,7 @@ export const useGame = create<GameState>((set, get) => ({
         campaignPhase: "campaignComplete",
         hitTint: "gold",
         lastFeedback: { ok: true, text: "CAMPAIGN COMPLETED" },
+        advancing: false,
       })
       void persist(progress)
       return
@@ -497,6 +532,7 @@ export const useGame = create<GameState>((set, get) => ({
         missionEndsAt: Date.now() + next.timeMs * bonus,
         flyTo: { ...next.fly },
         stage: "mission",
+        advancing: false,
       })
     }, 900)
   },

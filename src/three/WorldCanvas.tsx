@@ -24,6 +24,7 @@ export function WorldCanvas({
   return (
     <Canvas
       className="world-canvas"
+      style={{ touchAction: "none", cursor: "grab" }}
       camera={{
         position: land ? [11, 7.5, cameraZ] : [0, 0.55, cameraZ],
         fov: 40,

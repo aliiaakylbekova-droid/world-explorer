@@ -1,4 +1,5 @@
 import type { CampaignCheck, CampaignLevel } from "../data/campaign"
+import type { StoryMission } from "../game/storyMissions"
 import { getCatalog, pickNearestNamed } from "./catalog"
 
 function wrapLng(d: number) {
@@ -54,4 +55,18 @@ export function checkObjective(check: CampaignCheck, hit: { iso: string | null; 
 
 export function evaluateLevel(level: CampaignLevel, hit: { iso: string | null; lat: number; lng: number }) {
   return checkObjective(level.check, hit)
+}
+
+export function evaluateMission(mission: StoryMission, hit: { iso: string | null; lat: number; lng: number }) {
+  if (mission.kind === "river" || mission.kind === "mountain" || mission.kind === "city" || mission.kind === "coords") {
+    return geoDist2(mission.lat ?? 0, mission.lng ?? 0, hit.lat, hit.lng) < (mission.kind === "coords" ? 64 : 36)
+  }
+  if (mission.kind === "continent") {
+    const rec = hit.iso ? getCatalog()?.byIso.get(hit.iso) : undefined
+    return rec?.continent === "Asia" || rec?.continent === "Europe"
+  }
+  if (mission.kind === "flag" || mission.kind === "capital" || mission.kind === "neighbors" || mission.kind === "shape") {
+    return Boolean(hit.iso && hit.iso === mission.targetIso)
+  }
+  return false
 }

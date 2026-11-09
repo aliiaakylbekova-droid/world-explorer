@@ -50,11 +50,6 @@ export function GameShell() {
   const clearMission = useGame((s) => s.clearMission)
   const missionEndsAt = useGame((s) => s.missionEndsAt)
   const lastFeedback = useGame((s) => s.lastFeedback)
-  const setFeedback = useGame((s) => s.setFeedback)
-  const award = useGame((s) => s.award)
-  const note = useGame((s) => s.note)
-  const completeMission = useGame((s) => s.completeMission)
-  const fly = useGame((s) => s.fly)
   const lastHit = useGame((s) => s.lastHit)
   const introPhase = useGame((s) => s.introPhase)
   const finishIntro = useGame((s) => s.finishIntro)
@@ -97,33 +92,6 @@ export function GameShell() {
 
   function judge(hit: { iso: string | null; lat: number; lng: number }) {
     pick(hit)
-    if (useGame.getState().campaign) return
-    const m = useGame.getState().mission
-    if (!m) return
-    if (left <= 0) {
-      setFeedback(false, "Время вышло. Прочитай подсказку и попробуй снова.")
-      return
-    }
-    let ok = false
-    if (m.kind === "river" || m.kind === "mountain" || m.kind === "city" || m.kind === "coords") {
-      const dlat = (m.lat ?? 0) - hit.lat
-      const dlng = (m.lng ?? 0) - hit.lng
-      ok = dlat * dlat + dlng * dlng < (m.kind === "coords" ? 64 : 36)
-    } else if (m.kind === "continent") {
-      const rec = hit.iso ? getCatalog()?.byIso.get(hit.iso) : undefined
-      ok = rec?.continent === "Asia" || rec?.continent === "Europe"
-    } else if (m.kind === "flag" || m.kind === "capital" || m.kind === "neighbors" || m.kind === "shape") {
-      ok = Boolean(hit.iso && hit.iso === m.targetIso)
-    }
-    if (ok) {
-      setFeedback(true, `${m.targetName ?? m.title}: верно.`)
-      award(m.xp, 20)
-      completeMission(m.id)
-      note(`${m.title}: ${m.recap}`)
-      if (m.lat != null) fly(m.lat, m.lng ?? 0, 3.2)
-    } else {
-      setFeedback(false, m.hint)
-    }
   }
 
   const flagPool = useMemo(() => getCatalog()?.countries.filter((c) => c.iso.length === 2) ?? [], [stage, selectedIso])

@@ -12,12 +12,14 @@ import {
   type DirectionalLight,
   type Group,
   type LineBasicMaterial,
+  type Mesh,
 } from "three"
 import { useGame } from "../store/gameStore"
 import type { CountryRecord, NamedLine } from "../geo/catalog"
 import { isoOf, type Place } from "../geo/catalog"
 import { getCatalog, pickCountry } from "../geo/catalog"
 import { EARTH_R, cameraFor, geometryFromGeoJSON, vecToLatLng } from "./geo"
+import { GlobePick } from "./GlobePick"
 
 export type Layers = {
   relief: boolean
@@ -72,7 +74,7 @@ function ClimateShell({ on }: { on: boolean }) {
   }, [])
   if (!on || !tex) return null
   return (
-    <mesh>
+    <mesh raycast={() => undefined}>
       <sphereGeometry args={[EARTH_R + 0.012, 64, 48]} />
       <meshBasicMaterial map={tex} transparent opacity={0.28} depthWrite={false} />
     </mesh>
@@ -81,7 +83,7 @@ function ClimateShell({ on }: { on: boolean }) {
 
 function Atmosphere() {
   return (
-    <mesh scale={1.045}>
+    <mesh scale={1.045} raycast={() => undefined}>
       <sphereGeometry args={[EARTH_R, 64, 48]} />
       <meshBasicMaterial color="#7ec8ff" transparent opacity={0.14} blending={AdditiveBlending} side={BackSide} />
     </mesh>
@@ -115,6 +117,7 @@ export function EarthScene({
   const spinBoost = useGame((s) => s.spinBoost)
   const campaignPhase = useGame((s) => s.campaignPhase)
   const earth = useRef<Group>(null)
+  const globeMesh = useRef<Mesh>(null)
   const fly = useRef(0)
   const target = useRef(new Vector3(0, 0.4, 6.2))
   const look = useRef(new Vector3(0, 0, 0))
@@ -139,10 +142,11 @@ export function EarthScene({
   }, [spinBoost])
 
   useFrame((_, dt) => {
-    const slowCorrect = campaignPhase === "correct" || campaignPhase === "success"
-    const spin = introPhase === "ready" ? (slowCorrect ? 0.045 + boost.current : 0.01 + boost.current) : 0.09
-    boost.current = Math.max(0, boost.current - dt * 0.08)
-    if (earth.current) earth.current.rotation.y += dt * spin
+    const playing = introPhase === "ready"
+    const easeStop = campaignPhase === "correct" || campaignPhase === "success"
+    const spin = playing ? (easeStop ? boost.current * 0.35 : 0) : 0.09
+    boost.current = Math.max(0, boost.current - dt * (easeStop ? 0.55 : 0.12))
+    if (earth.current && spin > 0.0001) earth.current.rotation.y += dt * spin
     if (sun.current) sun.current.position.copy(camera.position)
 
     const want =
@@ -201,16 +205,18 @@ export function EarthScene({
       <hemisphereLight args={[new Color("#9ec9ff"), new Color("#1a120c"), 0.35]} />
       <directionalLight ref={sun} intensity={2.15} color="#fff4d6" castShadow position={[8, 3, 4]} />
       <Stars radius={48} depth={24} count={1600} factor={2.2} fade speed={0.25} />
+      <GlobePick
+        mesh={globeMesh}
+        features={features}
+        onPick={onPick}
+        enabled={introPhase === "ready" && campaignPhase !== "transition" && campaignPhase !== "correct" && campaignPhase !== "success"}
+      />
       <group ref={earth}>
       <mesh
-        onClick={(e) => {
-          e.stopPropagation()
-          const { lat, lng } = vecToLatLng(e.point)
-          const iso = pickCountry(lng, lat, features)
-          onPick({ iso, lat, lng })
-        }}
+        ref={globeMesh}
         onPointerMove={(e) => {
-          const { lat, lng } = vecToLatLng(e.point)
+          const local = e.object.worldToLocal(e.point.clone())
+          const { lat, lng } = vecToLatLng(local)
           const iso = pickCountry(lng, lat, features)
           lastHover.current = iso
           const rec = iso ? getCatalog()?.byIso.get(iso) : undefined
@@ -254,11 +260,11 @@ export function EarthScene({
       </group>
       <OrbitControls
         enablePan={false}
-        enabled={introPhase === "ready" && campaignPhase !== "transition" && campaignPhase !== "correct"}
+        enabled={introPhase === "ready" && campaignPhase !== "transition" && campaignPhase !== "correct" && campaignPhase !== "success"}
         minDistance={2.45}
         maxDistance={12}
         zoomSpeed={0.45}
-        rotateSpeed={0.32}
+        rotateSpeed={0.55}
         enableDamping
         dampingFactor={0.078}
       />
