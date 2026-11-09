@@ -22,8 +22,6 @@ export default function App() {
       continue: () => useGame.getState().continueCampaign(),
       retry: () => useGame.getState().retryLevel(),
       campaign: (index) => useGame.getState().startCampaign(index),
-      guess: (n) => useGame.getState().submitLandmarkGuess(n),
-      nextLandmark: () => useGame.getState().nextLandmarkQuest(),
       flag: () => {
         const btn = Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.includes("Флаги") || b.textContent?.includes("FLAGS"))
         btn?.click()

@@ -1,5 +1,4 @@
 import { Html } from "@react-three/drei"
-import { Guide } from "./Guide"
 
 function Beam(props: { position: [number, number, number]; args: [number, number, number]; rotation?: [number, number, number] }) {
   return (
@@ -21,15 +20,7 @@ function Leg({ x, z }: { x: number; z: number }) {
   )
 }
 
-export function EiffelScene({
-  onPoint,
-  speech,
-  speaking,
-}: {
-  onPoint: (title: string, text: string) => void
-  speech: string
-  speaking: boolean
-}) {
+export function EiffelScene({ onPoint }: { onPoint: (title: string, text: string) => void }) {
   return (
     <>
       <color attach="background" args={["#b9d4ee"]} />
@@ -77,10 +68,9 @@ export function EiffelScene({
           Сена
         </button>
       </Html>
-      <Guide position={[0, 6.12, 0.12]} speech={speech} speaking={speaking} />
-      <Html position={[0, 6.55, 0]} center>
+      <Html position={[0, 6.2, 0]} center>
         <button type="button" className="hotspot" onClick={() => onPoint("Шпиль", "Полная высота с антенной — 324 метра.")}>
-          ?
+          324 м
         </button>
       </Html>
     </>

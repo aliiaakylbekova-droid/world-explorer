@@ -24,8 +24,6 @@ declare global {
       continue: () => void
       retry: () => void
       campaign: (index?: number) => void
-      guess: (n: string) => boolean
-      nextLandmark: () => void
     }
   }
 }

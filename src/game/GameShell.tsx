@@ -5,7 +5,6 @@ import { GEO_CAMPAIGN } from "../data/campaign"
 import { LANDMARKS, NEIGHBORS, getCatalog, loadCatalog } from "../geo/catalog"
 import { formatClock } from "./logic"
 import { CampaignOverlay } from "./CampaignOverlay"
-import { LandmarkQuiz } from "./LandmarkQuiz"
 import { FLAG_MODES, STORY_MISSIONS, type StoryMission } from "./storyMissions"
 import { StageView } from "../three/StageView"
 import { useGame } from "../store/gameStore"
@@ -65,8 +64,6 @@ export function GameShell() {
   const tickTimeout = useGame((s) => s.tickTimeout)
   const lastCountryName = useGame((s) => s.lastCountryName)
   const hitTint = useGame((s) => s.hitTint)
-  const landmarkQuest = useGame((s) => s.landmarkQuest)
-  const landmarkPhase = useGame((s) => s.landmarkPhase)
   const [hintOn, setHintOn] = useState(false)
   const [point, setPoint] = useState<{ title: string; text: string } | null>(null)
   const [flagRound, setFlagRound] = useState<StoryMission | null>(null)
@@ -91,8 +88,8 @@ export function GameShell() {
   }, [introPhase])
 
   useEffect(() => {
-    if (stage === "mission" && campaign && campaignPhase === "play" && left <= 0 && missionEndsAt) tickTimeout()
-  }, [left, campaign, campaignPhase, missionEndsAt, tickTimeout, stage])
+    if (campaign && campaignPhase === "play" && left <= 0 && missionEndsAt) tickTimeout()
+  }, [left, campaign, campaignPhase, missionEndsAt, tickTimeout])
 
   const country = selectedIso ? getCatalog()?.byIso.get(selectedIso) : undefined
   const landmark = LANDMARKS.find((l) => l.id === landmarkId) ?? LANDMARKS[0]
@@ -225,30 +222,18 @@ export function GameShell() {
   const xpInto = progress.xp % 120
   const missionProgress = Math.min(1, (progress.campaignDone.length || progress.missionsDone.length) / GEO_CAMPAIGN.length)
 
-  const leftTitle =
-    stage === "discover"
-      ? landmarkQuest?.title ?? landmark?.name ?? "Discover"
-      : campaign
-        ? campaign.title
-        : stage === "explore"
-          ? "Исследуй"
-          : stage === "journal"
-            ? "Журнал"
-            : stage === "settings"
-              ? "Настройки"
-              : mission?.title ?? "Миссия"
-  const leftBrief =
-    stage === "discover"
-      ? landmarkQuest?.spoken ?? landmark?.fact
-      : campaign
-        ? campaign.instruction
-        : stage === "explore"
-          ? "Вращай Землю, приближай, кликай страны. Сначала смотри, потом задание."
-          : stage === "journal"
-            ? "Записи экспедиции."
-            : stage === "settings"
-              ? "Music / SFX. Сложность меняет таймер."
-              : mission?.story
+  const leftTitle = campaign ? campaign.title : stage === "explore" ? "Исследуй" : stage === "discover" ? "Открой место" : stage === "journal" ? "Журнал" : stage === "settings" ? "Настройки" : mission?.title ?? "Миссия"
+  const leftBrief = campaign
+    ? campaign.instruction
+    : stage === "explore"
+      ? "Вращай Землю, приближай, кликай страны. Сначала смотри, потом задание."
+      : stage === "discover"
+        ? landmark?.fact
+        : stage === "journal"
+          ? "Записи экспедиции."
+          : stage === "settings"
+            ? "Music / SFX. Сложность меняет таймер."
+            : mission?.story
 
   return (
     <div className={`gq-live hud intro-${introPhase}`} data-hud="explorer-v2" data-intro={introPhase}>
@@ -270,10 +255,10 @@ export function GameShell() {
 
       <aside className="hud-left">
         <article className="mission-card" key={stage + (mission?.id ?? "")}>
-            <p className="mission-no">{stage === "discover" ? "DISCOVER" : `LEVEL ${String(missionIndex).padStart(2, "0")}`}</p>
+            <p className="mission-no">LEVEL {String(missionIndex).padStart(2, "0")}</p>
             <h3>{leftTitle}</h3>
             <p className="brief">{leftBrief}</p>
-            {campaign && stage !== "discover" ? (
+            {campaign ? (
               <>
                 <p className="goal">
                   <span>Task</span>
@@ -299,27 +284,20 @@ export function GameShell() {
           ) : null}
           {stage === "discover" && landmark ? (
             <>
-              <p className="goal">
-                <span>3D landmark</span>
-                {landmarkQuest ? `${landmarkQuest.speaker}: ${landmarkQuest.prompt}` : "Walk the scene. A guide waits at the top."}
-              </p>
               {point ? (
                 <div className="recap">
                   <strong>{point.title}</strong>
                   <p>{point.text}</p>
                 </div>
-              ) : null}
-              <div className="diff-row">
-                <button type="button" className="chip" onClick={() => openLandmark("eiffel")}>
-                  Eiffel
-                </button>
-                <button type="button" className="chip" onClick={() => openLandmark("burana")}>
-                  Burana
-                </button>
-                <button type="button" className="chip" onClick={() => openLandmark("giza")}>
-                  Giza
-                </button>
-              </div>
+              ) : (
+                <p className="goal">
+                  <span>Цель игрока</span>
+                  Кликай золотые точки на сцене.
+                </p>
+              )}
+              <button type="button" className="btn" onClick={() => setStage("mission")}>
+                К миссии по территории
+              </button>
             </>
           ) : null}
           {(stage === "mission" || stage === "flag") && mission ? (
@@ -370,15 +348,13 @@ export function GameShell() {
       <main className="hud-center">
         <StageView
           discover={discover}
-          scene={landmarkQuest?.scene ?? landmark.scene}
+          scene={landmark.scene}
           onPick={judge}
           onPoint={(title, text) => setPoint({ title, text })}
           onHover={(hit) => {
             if (!hit?.name) setHoverTip(null)
             else setHoverTip({ name: hit.name, x: hit.x, y: hit.y })
           }}
-          speech={landmarkQuest?.spoken ?? ""}
-          speaking={discover && (landmarkPhase === "speaking" || landmarkPhase === "quiz")}
         />
         {hoverTip ? (
           <div className="gq-tip" style={{ left: hoverTip.x, top: hoverTip.y }}>
@@ -391,13 +367,10 @@ export function GameShell() {
           <div className="gq-select-chip">{country.name}</div>
         ) : null}
         <CampaignOverlay />
-        {discover ? <LandmarkQuiz /> : null}
       </main>
 
       <aside className="hud-right">
-        {stage === "discover" ? (
-          <div className="timer-idle">LANDMARK</div>
-        ) : campaign && campaignPhase === "play" ? (
+        {campaign && campaignPhase === "play" ? (
           <div className="timer-xl" key={campaign.id}>
             {formatClock(left)}
           </div>
@@ -487,7 +460,7 @@ export function GameShell() {
           </svg>
           <span>EXPLORE</span>
         </button>
-        <button type="button" className={stage === "discover" ? "on" : ""} onClick={() => openLandmark(landmarkId && landmarkId !== "issyk" ? landmarkId : "eiffel")}>
+        <button type="button" className={stage === "discover" ? "on" : ""} onClick={() => (landmarkId ? setStage("discover") : openLandmark("issyk"))}>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 4v4M12 16v4M4 12h4M16 12h4" />
             <circle cx="12" cy="12" r="3" />

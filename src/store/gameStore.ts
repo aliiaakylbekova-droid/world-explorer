@@ -1,7 +1,6 @@
 import { create } from "zustand"
 import { audio } from "../audio/AudioManager"
 import { GEO_CAMPAIGN, type CampaignLevel } from "../data/campaign"
-import { LANDMARK_QUESTS, questById, type LandmarkQuest } from "../data/landmarkQuests"
 import { countryNameOf, evaluateLevel } from "../geo/hitTest"
 import { LANDMARKS } from "../geo/catalog"
 import type { StoryMission } from "../game/storyMissions"
@@ -13,11 +12,7 @@ import type { Profile } from "../types/electron"
 export type Stage = "register" | "explore" | "discover" | "mission" | "flag" | "journal" | "settings"
 export type IntroPhase = "card" | "approach" | "ready"
 export type CampaignPhase = "play" | "correct" | "success" | "wrong" | "timeout" | "levelComplete" | "campaignComplete" | "transition"
-export type LandmarkPhase = "off" | "speaking" | "quiz" | "correct" | "wrong"
 export type HitTint = "gold" | "cyan" | "red" | "orange" | null
-
-let autoAdvanceTimer = 0
-let speakTimer = 0
 
 export type FlyTo = { lat: number; lng: number; dist: number } | null
 
@@ -80,9 +75,6 @@ type GameState = {
   spinBoost: number
   displayXp: number
   lastCountryName: string | null
-  advancing: boolean
-  landmarkQuest: LandmarkQuest | null
-  landmarkPhase: LandmarkPhase
   hydrate: () => Promise<void>
   register: (name: string, avatar: string) => Promise<void>
   finishIntro: () => void
@@ -110,8 +102,6 @@ type GameState = {
   continueCampaign: () => void
   tickTimeout: () => void
   syncAudio: () => void
-  submitLandmarkGuess: (raw: string) => boolean
-  nextLandmarkQuest: () => void
 }
 
 async function persist(progress: Progress) {
@@ -145,9 +135,6 @@ export const useGame = create<GameState>((set, get) => ({
   spinBoost: 0,
   displayXp: 0,
   lastCountryName: null,
-  advancing: false,
-  landmarkQuest: null,
-  landmarkPhase: "off",
 
   hydrate: async () => {
     try {
@@ -202,12 +189,10 @@ export const useGame = create<GameState>((set, get) => ({
     let progress = get().progress
     if (stage === "explore") progress = grant(progress, "globe-spin")
     const home = stage === "explore" && get().stage !== "explore"
-    if (stage !== "discover") audio.stopWind()
     set({
       stage,
       lastFeedback: null,
       flyTo: home ? { lat: 18, lng: 20, dist: 6.5 } : get().flyTo,
-      landmarkPhase: stage === "discover" ? get().landmarkPhase : "off",
     })
     void persist(progress)
     if (progress !== get().progress) set({ progress })
@@ -281,10 +266,6 @@ export const useGame = create<GameState>((set, get) => ({
           lastFeedback: { ok: true, text: "GREAT JOB" },
         })
         void persist(next)
-        window.clearTimeout(autoAdvanceTimer)
-        autoAdvanceTimer = window.setTimeout(() => {
-          if (get().campaignPhase === "success") get().continueCampaign()
-        }, 2400)
       }, 1100)
     } else {
       audio.play("fail")
@@ -310,31 +291,16 @@ export const useGame = create<GameState>((set, get) => ({
   openLandmark: (id) => {
     const lm = LANDMARKS.find((l) => l.id === id)
     if (!lm) return
-    const quest = questById(id) ?? LANDMARK_QUESTS.find((q) => q.scene === lm.scene) ?? null
     const stamps = get().progress.stamps.includes(id) ? get().progress.stamps : [...get().progress.stamps, id]
     const progress = { ...get().progress, stamps }
-    audio.unlock()
-    audio.play("whoosh")
-    audio.play("wind")
-    audio.play("quest")
     set({
       landmarkId: id,
       selectedIso: lm.country,
       stage: "discover",
       flyTo: { lat: lm.lat, lng: lm.lng, dist: 3.1 },
       progress,
-      landmarkQuest: quest,
-      landmarkPhase: quest ? "speaking" : "off",
-      lastFeedback: null,
     })
     void persist(progress)
-    window.clearTimeout(speakTimer)
-    if (quest) {
-      audio.speak(quest.spoken)
-      speakTimer = window.setTimeout(() => {
-        if (get().landmarkQuest?.id === quest.id) set({ landmarkPhase: "quiz" })
-      }, 2200)
-    }
   },
 
   startMission: (mission) => {
@@ -459,7 +425,6 @@ export const useGame = create<GameState>((set, get) => ({
       stage: "mission",
       missionEndsAt: Date.now() + level.timeMs * bonus,
       flyTo: { ...level.fly },
-      advancing: false,
     })
   },
 
@@ -483,11 +448,6 @@ export const useGame = create<GameState>((set, get) => ({
   continueCampaign: () => {
     const level = get().campaign
     if (!level) return
-    if (get().advancing) return
-    const phase = get().campaignPhase
-    if (phase !== "success" && phase !== "levelComplete") return
-    window.clearTimeout(autoAdvanceTimer)
-    set({ advancing: true })
     const done = get().progress.campaignDone.includes(level.id)
       ? get().progress.campaignDone
       : [...get().progress.campaignDone, level.id]
@@ -510,13 +470,11 @@ export const useGame = create<GameState>((set, get) => ({
         campaignPhase: "campaignComplete",
         hitTint: "gold",
         lastFeedback: { ok: true, text: "CAMPAIGN COMPLETED" },
-        advancing: false,
       })
       void persist(progress)
       return
     }
     const next = GEO_CAMPAIGN[nextIndex]
-    audio.play("nextTask")
     audio.play("transition")
     audio.play("zoom")
     const bonus = progress.difficulty === "hard" ? 0.75 : progress.difficulty === "easy" ? 1.35 : 1
@@ -539,58 +497,8 @@ export const useGame = create<GameState>((set, get) => ({
         missionEndsAt: Date.now() + next.timeMs * bonus,
         flyTo: { ...next.fly },
         stage: "mission",
-        advancing: false,
       })
     }, 900)
-  },
-
-  submitLandmarkGuess: (raw) => {
-    const quest = get().landmarkQuest
-    if (!quest) return false
-    const n = Number(String(raw).replace(",", ".").replace(/[^\d.+-]/g, ""))
-    if (!Number.isFinite(n)) {
-      audio.play("guessBad")
-      set({ landmarkPhase: "wrong", lastFeedback: { ok: false, text: "TRY AGAIN" } })
-      return false
-    }
-    const ok = Math.abs(n - quest.answer) <= quest.tolerance
-    if (!ok) {
-      audio.play("guessBad")
-      audio.play("fail")
-      set({ landmarkPhase: "wrong", lastFeedback: { ok: false, text: "TRY AGAIN" } })
-      window.setTimeout(() => {
-        if (get().landmarkPhase === "wrong") set({ landmarkPhase: "quiz" })
-      }, 1400)
-      return false
-    }
-    audio.play("guessOk")
-    audio.play("chime")
-    audio.play("success")
-    let progress = { ...get().progress, xp: get().progress.xp + quest.xp, coins: get().progress.coins + 15 }
-    if (progress.xp >= 500) progress = grant(progress, "xp-500")
-    const missionsDone = progress.missionsDone.includes(quest.id) ? progress.missionsDone : [...progress.missionsDone, quest.id]
-    progress = { ...progress, missionsDone }
-    set({
-      progress,
-      landmarkPhase: "correct",
-      lastFeedback: { ok: true, text: "GREAT JOB" },
-    })
-    void persist(progress)
-    audio.play("xp")
-    return true
-  },
-
-  nextLandmarkQuest: () => {
-    const quest = get().landmarkQuest
-    const nid = quest?.next
-    audio.play("nextTask")
-    if (!nid) {
-      audio.play("missionComplete")
-      audio.stopWind()
-      set({ landmarkPhase: "off", landmarkQuest: null, stage: "explore" })
-      return
-    }
-    get().openLandmark(nid)
   },
 
   tickTimeout: () => {
