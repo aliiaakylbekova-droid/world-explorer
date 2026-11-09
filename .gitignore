@@ -7,6 +7,9 @@ dist-ssr
 release/*
 !release/README.md
 *.local
+.env
+.env.*
+!.env.example
 .vscode/*
 !.vscode/extensions.json
 .idea

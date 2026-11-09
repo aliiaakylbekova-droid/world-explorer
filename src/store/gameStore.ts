@@ -7,6 +7,8 @@ import type { StoryMission } from "../game/storyMissions"
 import type { Locale } from "../i18n"
 import { setLocale, t } from "../i18n"
 import type { Layers } from "../three/EarthScene"
+import { cloudPull, cloudPush, cloudResetProgress } from "../net/cloud"
+import { publishScore } from "../net/leaderboard"
 import type { Profile } from "../types/electron"
 
 export type Stage = "register" | "explore" | "discover" | "mission" | "flag" | "journal" | "settings"
@@ -107,9 +109,11 @@ type GameState = {
   syncAudio: () => void
 }
 
-async function persist(progress: Progress) {
+async function persist(progress: Progress, profile?: Profile | null) {
   if (window.geoQuest) await window.geoQuest.saveProgress(progress)
   else localStorage.setItem("gq-progress", JSON.stringify(progress))
+  const who = profile ?? useGame.getState().profile
+  void cloudPush(who, progress)
 }
 
 function grant(progress: Progress, id: string) {
@@ -152,7 +156,24 @@ export const useGame = create<GameState>((set, get) => ({
         (localStorage.getItem("gq-profile") ? (JSON.parse(localStorage.getItem("gq-profile")!) as Profile) : null)
       const saved = ((await withTime(api?.getProgress() as Promise<Progress> | undefined)) ??
         (localStorage.getItem("gq-progress") ? JSON.parse(localStorage.getItem("gq-progress")!) : null)) as Progress | null
-      const progress = saved ? { ...defaultProgress(), ...saved } : defaultProgress()
+      let progress = saved ? { ...defaultProgress(), ...saved } : defaultProgress()
+      let nextProfile = profile
+      if (!nextProfile) {
+        const cloud = await cloudPull()
+        if (cloud.profile) {
+          nextProfile = cloud.profile
+          if (cloud.progress) progress = { ...defaultProgress(), ...cloud.progress }
+          if (window.geoQuest) {
+            await window.geoQuest.saveProfile(nextProfile)
+            await window.geoQuest.saveProgress(progress)
+          } else {
+            localStorage.setItem("gq-profile", JSON.stringify(nextProfile))
+            localStorage.setItem("gq-progress", JSON.stringify(progress))
+          }
+        }
+      } else {
+        void cloudPush(nextProfile, progress)
+      }
       setLocale(progress.locale)
       audio.setMaster(progress.volume)
       audio.setMusic(progress.musicOn)
@@ -160,12 +181,12 @@ export const useGame = create<GameState>((set, get) => ({
       audio.setMusicVol(progress.musicVol)
       audio.setSfxVol(progress.sfxVol)
       set({
-        profile,
+        profile: nextProfile,
         progress,
         displayXp: progress.xp,
         ready: true,
-        stage: profile ? "explore" : "register",
-        introPhase: profile ? "approach" : "card",
+        stage: nextProfile ? "explore" : "register",
+        introPhase: nextProfile ? "approach" : "card",
       })
     } catch {
       set({ ready: true, stage: "register", progress: defaultProgress(), introPhase: "card" })
@@ -177,7 +198,7 @@ export const useGame = create<GameState>((set, get) => ({
     if (window.geoQuest) await window.geoQuest.saveProfile(profile)
     else localStorage.setItem("gq-profile", JSON.stringify(profile))
     const progress = grant(get().progress, "first-step")
-    await persist(progress)
+    await persist(progress, profile)
     audio.unlock()
     audio.play("start")
     audio.play("ambient")
@@ -506,7 +527,8 @@ export const useGame = create<GameState>((set, get) => ({
         lastFeedback: { ok: true, text: t().play.campaignDone },
         advancing: false,
       })
-      void persist(progress)
+      void persist(progress, get().profile)
+      void publishScore({ name: get().profile?.name ?? "Игрок", score: progress.xp, at: Date.now() })
       return
     }
     const next = GEO_CAMPAIGN[nextIndex]
@@ -553,6 +575,8 @@ export const useGame = create<GameState>((set, get) => ({
 
   resetProgress: async () => {
     await window.geoQuest?.resetProgress()
+    localStorage.removeItem("gq-progress")
+    void cloudResetProgress()
     const progress = defaultProgress()
     set({
       progress,

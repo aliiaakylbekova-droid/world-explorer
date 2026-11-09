@@ -106,7 +106,7 @@ app.whenReady().then(() => {
       responseHeaders: {
         ...details.responseHeaders,
         "Content-Security-Policy": [
-          `default-src 'self'; ${script}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws://127.0.0.1:47231 http://127.0.0.1:47231; worker-src 'self' blob:`,
+          `default-src 'self'; ${script}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws://127.0.0.1:47231 http://127.0.0.1:47231 https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:`,
         ],
       },
     })
