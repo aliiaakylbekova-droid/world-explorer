@@ -4,18 +4,25 @@
 
 Офлайн-игра для Windows: Electron + React + TypeScript + Three.js. После регистрации сразу **Исследуй** (нет главного меню из карточек). Интерфейс на русском.
 
-## Запуск
+## Запуск в браузере (ветка `localhost`)
+
+```bash
+npm install
+npm run dev
+```
+
+Vite слушает **http://127.0.0.1:47231/** и открывает Google Chrome. Electron не нужен. HMR с `watch.usePolling`. Если порт уже занят живым Vite, команда только открывает браузер.
+
+## Запуск Electron
 
 ```bash
 npm install
 npm run electron:dev
 ```
 
-Живой URL (Vite HMR, исходники, не `dist/`): **http://127.0.0.1:47231/**
+Живой URL тот же: **http://127.0.0.1:47231/**
 
 `vite preview` смотрит уже собранный `dist/` на порту **4173**, не на 47231 — иначе Try Live показывал бы старый билд.
-
-Отладка рендерера: `npm run dev` — это не продукт для игрока.
 
 ## Сборка Windows
 
