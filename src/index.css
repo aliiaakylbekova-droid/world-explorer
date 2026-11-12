@@ -39,6 +39,7 @@ button, input, select { font-family: inherit; }
   position: relative;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .gq-tip {
@@ -85,6 +86,10 @@ button, input, select { font-family: inherit; }
   position: absolute;
   inset: 0;
   z-index: 0;
+  pointer-events: auto;
+}
+.hud-center canvas {
+  touch-action: none;
 }
 
 .hud-top, .hud-left, .hud-right, .hud-bottom {
@@ -129,7 +134,7 @@ button, input, select { font-family: inherit; }
   bottom: 92px;
   width: min(280px, 26vw);
   padding: 4px;
-  overflow: auto;
+  overflow: visible;
   background: transparent;
   border: 0;
   display: flex;
@@ -361,7 +366,7 @@ button, input, select { font-family: inherit; }
   background: var(--glass-2);
   backdrop-filter: blur(18px);
   box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.35);
-  overflow: auto;
+  overflow: hidden;
 }
 
 .hud-bottom button {

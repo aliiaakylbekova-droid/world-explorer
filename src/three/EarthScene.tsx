@@ -141,10 +141,25 @@ export function EarthScene({
     boost.current = spinBoost
   }, [spinBoost])
 
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t?.closest("input, textarea, select, .journal, .audio-set")) return
+      e.preventDefault()
+      if (introPhase !== "ready") return
+      const len = camera.position.length()
+      if (len < 0.2) return
+      const next = Math.min(12, Math.max(2.45, len * Math.exp(e.deltaY * 0.00125)))
+      camera.position.multiplyScalar(next / len)
+    }
+    window.addEventListener("wheel", onWheel, { passive: false })
+    return () => window.removeEventListener("wheel", onWheel)
+  }, [camera, introPhase])
+
   useFrame((_, dt) => {
     const playing = introPhase === "ready"
     const easeStop = campaignPhase === "correct" || campaignPhase === "success"
-    const spin = playing ? (easeStop ? boost.current * 0.35 : 0) : 0.09
+    const spin = easeStop ? boost.current * 0.35 : playing ? 0.075 : 0.09
     boost.current = Math.max(0, boost.current - dt * (easeStop ? 0.55 : 0.12))
     if (earth.current && spin > 0.0001) earth.current.rotation.y += dt * spin
     if (sun.current) sun.current.position.copy(camera.position)
@@ -260,10 +275,12 @@ export function EarthScene({
       </group>
       <OrbitControls
         enablePan={false}
+        enableRotate
+        enableZoom
         enabled={introPhase === "ready" && campaignPhase !== "transition" && campaignPhase !== "correct" && campaignPhase !== "success"}
         minDistance={2.45}
         maxDistance={12}
-        zoomSpeed={0.45}
+        zoomSpeed={1.15}
         rotateSpeed={0.55}
         enableDamping
         dampingFactor={0.078}
