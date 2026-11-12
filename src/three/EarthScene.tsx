@@ -1,12 +1,13 @@
 import { OrbitControls, Stars } from "@react-three/drei"
 import { useFrame, useLoader, useThree } from "@react-three/fiber"
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   AdditiveBlending,
   BackSide,
   CanvasTexture,
   Color,
   SRGBColorSpace,
+  Spherical,
   TextureLoader,
   Vector3,
   type DirectionalLight,
@@ -17,8 +18,7 @@ import {
 import { useGame } from "../store/gameStore"
 import type { CountryRecord, NamedLine } from "../geo/catalog"
 import { isoOf, type Place } from "../geo/catalog"
-import { getCatalog, pickCountry } from "../geo/catalog"
-import { EARTH_R, cameraFor, geometryFromGeoJSON, vecToLatLng } from "./geo"
+import { EARTH_R, cameraFor, geometryFromGeoJSON } from "./geo"
 import { GlobePick } from "./GlobePick"
 
 export type Layers = {
@@ -142,15 +142,28 @@ export function EarthScene({
   }, [spinBoost])
 
   useEffect(() => {
+    const sph = new Spherical()
     const onWheel = (e: WheelEvent) => {
       const t = e.target as HTMLElement | null
       if (t?.closest("input, textarea, select, .journal, .audio-set")) return
       e.preventDefault()
       if (introPhase !== "ready") return
-      const len = camera.position.length()
-      if (len < 0.2) return
-      const next = Math.min(12, Math.max(2.45, len * Math.exp(e.deltaY * 0.00125)))
-      camera.position.multiplyScalar(next / len)
+      sph.setFromVector3(camera.position)
+      const notch = e.deltaMode === 1 || e.shiftKey
+      if (notch) {
+        sph.theta += Math.sign(e.deltaY || e.deltaX) * 0.14
+      } else {
+        sph.theta += e.deltaX * 0.0025
+        if (e.ctrlKey || e.metaKey) {
+          sph.radius = Math.min(12, Math.max(2.45, sph.radius * Math.exp(e.deltaY * 0.00125)))
+        } else {
+          sph.theta += e.deltaY * 0.0022
+          sph.radius = Math.min(12, Math.max(2.45, sph.radius * Math.exp(e.deltaY * 0.00045)))
+        }
+      }
+      sph.phi = Math.min(Math.PI - 0.12, Math.max(0.12, sph.phi))
+      camera.position.setFromSpherical(sph)
+      camera.lookAt(0, 0, 0)
     }
     window.addEventListener("wheel", onWheel, { passive: false })
     return () => window.removeEventListener("wheel", onWheel)
@@ -205,13 +218,13 @@ export function EarthScene({
     return geometryFromGeoJSON(fake, EARTH_R + 0.01)
   }, [rivers])
 
-  const selectedFeature = features.find((f) => isoOf(f) === (highlightIso || selectedIso))
+  const [hoverIso, setHoverIso] = useState<string | null>(null)
+  const outlineIso = hoverIso || highlightIso || selectedIso
+  const selectedFeature = features.find((f) => isoOf(f) === outlineIso)
   const selectedGeo = useMemo(
     () => (selectedFeature ? geometryFromGeoJSON([selectedFeature], EARTH_R + 0.011) : null),
     [selectedFeature],
   )
-
-  const lastHover = useRef<string | null>(null)
 
   return (
     <group>
@@ -224,27 +237,14 @@ export function EarthScene({
         mesh={globeMesh}
         features={features}
         onPick={onPick}
+        onHover={(hit) => {
+          setHoverIso(hit?.iso ?? null)
+          onHover?.(hit)
+        }}
         enabled={introPhase === "ready" && campaignPhase !== "transition" && campaignPhase !== "correct" && campaignPhase !== "success"}
       />
       <group ref={earth}>
-      <mesh
-        ref={globeMesh}
-        onPointerMove={(e) => {
-          const local = e.object.worldToLocal(e.point.clone())
-          const { lat, lng } = vecToLatLng(local)
-          const iso = pickCountry(lng, lat, features)
-          lastHover.current = iso
-          const rec = iso ? getCatalog()?.byIso.get(iso) : undefined
-          const ne = e.nativeEvent as PointerEvent
-          const x = e.clientX || ne.clientX || 0
-          const y = e.clientY || ne.clientY || 0
-          onHover?.(rec ? { iso, name: rec.name, x, y } : null)
-        }}
-        onPointerOut={() => {
-          lastHover.current = null
-          onHover?.(null)
-        }}
-      >
+      <mesh ref={globeMesh}>
         <sphereGeometry args={[EARTH_R, 96, 64]} />
         <meshStandardMaterial
           map={day}
